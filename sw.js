@@ -1,9 +1,9 @@
-const CACHE_NAME = 'campus-map-v2';
+const CACHE_NAME = 'campus-map-v3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
-  './Floor plan.jpg',
+  './floorplan.jpg',
   './icon-192.png',
   './icon-512.png',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',

@@ -386,7 +386,8 @@
       maxBounds: bounds
     });
 
-    const overlay = L.imageOverlay('Floor plan.jpg', bounds).addTo(map);
+    // Updated floorplan image file name (no spaces)
+    const overlay = L.imageOverlay('floorplan.jpg', bounds).addTo(map);
     map.fitBounds(bounds);
 
     const buildingBounds = {
