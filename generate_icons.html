@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head><title>App Icon Generator</title></head>
+<body style="font-family:sans-serif; text-align:center; padding:50px; background:#121212; color:#fff;">
+  <h2>Campus Map Icon Generator</h2>
+  <p>Click below to generate and download the two required app icons.</p>
+  <button onclick="createIcons()" style="padding:14px 28px; font-size:16px; background:#007aff; color:#fff; border:none; border-radius:10px; cursor:pointer;">Generate App Icons</button>
+
+  <script>
+    function createIcons() {
+      [192, 512].forEach(size => {
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        // Background
+        ctx.fillStyle = '#007aff';
+        ctx.beginPath();
+        ctx.arc(size/2, size/2, size/2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Icon Map Pin Graphic
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${size * 0.45}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🗺️', size / 2, size / 2);
+
+        // Download
+        const a = document.createElement('a');
+        a.download = `icon-${size}.png`;
+        a.href = canvas.toDataURL('image/png');
+        a.click();
+      });
+    }
+  </script>
+</body>
+</html>

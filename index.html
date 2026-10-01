@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Enterprise Campus Navigation</title>
+
+  <!-- PWA Manifest & App Meta Tags -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Campus Map" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <meta name="theme-color" content="#007aff" />
+
+  <!-- Leaflet Mapping Engine -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    :root {
+      --bg-panel: rgba(24, 24, 27, 0.94);
+      --bg-input: rgba(255, 255, 255, 0.96);
+      --text-main: #ffffff;
+      --text-sub: #aaaaaa;
+      --border-color: rgba(255, 255, 255, 0.12);
+      --accent-color: #007aff;
+      --success-color: #34c759;
+      --danger-color: #ff3b30;
+    }
+
+    [data-theme="light"] {
+      --bg-panel: rgba(255, 255, 255, 0.94);
+      --bg-input: rgba(240, 240, 245, 0.96);
+      --text-main: #111111;
+      --text-sub: #555555;
+      --border-color: rgba(0, 0, 0, 0.12);
+      --accent-color: #0066cc;
+      --success-color: #28a745;
+      --danger-color: #dc3545;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background-color: #121212; color: var(--text-main); }
+
+    #map { width: 100vw; height: 100vh; background: #18181b; }
+
+    .glass {
+      background: var(--bg-panel);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    }
+
+    .top-panel {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      width: 92%;
+      max-width: 520px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .search-container { position: relative; width: 100%; }
+    .search-input {
+      width: 100%;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 16px;
+      font-size: 15px;
+      background: var(--bg-input);
+      color: #111;
+      outline: none;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+      font-weight: 500;
+    }
+
+    .suggestions-list {
+      position: absolute;
+      top: 54px;
+      left: 0; right: 0;
+      max-height: 220px;
+      overflow-y: auto;
+      background: var(--bg-panel);
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      display: none;
+      z-index: 1001;
+    }
+    .suggestion-item {
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border-color);
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text-main);
+    }
+
+    .pills-row {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding: 8px;
+      white-space: nowrap;
+      -webkit-overflow-scrolling: touch;
+    }
+    .pills-row::-webkit-scrollbar { display: none; }
+
+    .pill {
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: none;
+      background: rgba(125, 125, 125, 0.15);
+      color: var(--text-sub);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .pill.active { background: var(--accent-color); color: #fff; }
+    .pill.toggle-active { background: var(--success-color); color: #fff; }
+
+    .side-controls {
+      position: absolute;
+      right: 14px;
+      top: 210px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .icon-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: none;
+      background: var(--bg-panel);
+      color: var(--text-main);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      border: 1px solid var(--border-color);
+    }
+    .icon-btn.active-loc { background: var(--accent-color); color: #fff; }
+
+    .bottom-drawer {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      width: 92%;
+      max-width: 520px;
+      padding: 18px;
+      display: none;
+    }
+    .drawer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .badge { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #fff; }
+
+    .btn-row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+    .btn {
+      flex: 1;
+      min-width: 100px;
+      padding: 11px;
+      border: none;
+      border-radius: 10px;
+      background: var(--accent-color);
+      color: white;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      text-align: center;
+    }
+    .btn.secondary { background: rgba(125, 125, 125, 0.2); color: var(--text-main); }
+    .btn.success { background: var(--success-color); }
+
+    .nav-banner {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      width: 92%;
+      max-width: 520px;
+      padding: 16px;
+      display: none;
+      border-left: 5px solid var(--accent-color);
+      max-height: 250px;
+      overflow-y: auto;
+    }
+    .step-list { margin-top: 10px; padding-left: 18px; font-size: 13px; color: var(--text-sub); }
+    .step-list li { margin-bottom: 6px; }
+
+    .user-location-container {
+      position: relative;
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .vision-cone {
+      position: absolute;
+      width: 0;
+      height: 0;
+      border-left: 20px solid transparent;
+      border-right: 20px solid transparent;
+      border-bottom: 40px solid rgba(0, 122, 255, 0.35);
+      top: -20px;
+      transform-origin: center bottom;
+      transition: transform 0.15s ease-out;
+      pointer-events: none;
+    }
+    .user-dot {
+      width: 16px;
+      height: 16px;
+      background-color: #007aff;
+      border: 3px solid #ffffff;
+      border-radius: 50%;
+      box-shadow: 0 0 12px rgba(0, 122, 255, 0.8);
+      z-index: 2;
+    }
+
+    .modal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-content {
+      width: 100%;
+      max-width: 480px;
+      max-height: 80vh;
+      overflow-y: auto;
+      padding: 20px;
+    }
+    .dept-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+    .dept-item { padding: 10px; border-radius: 8px; font-size: 12px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; color: #fff; }
+  </style>
+</head>
+<body>
+
+  <!-- Map Viewport -->
+  <div id="map"></div>
+
+  <!-- Sidebar Quick Controls -->
+  <div class="side-controls">
+    <button class="icon-btn" id="locBtn" onclick="toggleLiveLocation()" title="Locate Me / Compass">📍</button>
+    <button class="icon-btn" id="calibrateBtn" onclick="enableManualCalibration()" title="Tap Map to Set My Location">🎯</button>
+    <button class="icon-btn" onclick="zoomIn()" title="Zoom In">➕</button>
+    <button class="icon-btn" onclick="zoomOut()" title="Zoom Out">➖</button>
+    <button class="icon-btn" onclick="toggleTheme()" title="Toggle Theme">🌓</button>
+    <button class="icon-btn" onclick="toggleLegendModal()" title="Department Legend">🎨</button>
+    <button class="icon-btn" onclick="toggleTimetableModal()" title="Timetable Planner">📅</button>
+    <button class="icon-btn" onclick="toggleFavoritesModal()" title="Bookmarks">⭐</button>
+  </div>
+
+  <!-- Top Controls Panel -->
+  <div class="top-panel">
+    <div class="search-container">
+      <input type="text" id="searchInput" class="search-input" placeholder="Search room, dept, or facility (e.g. W105, C112, Science)..." />
+      <div id="suggestions" class="suggestions-list"></div>
+    </div>
+
+    <div class="glass pills-row" id="bldgPills">
+      <button class="pill active" onclick="filterBuilding('ALL', this)">All Buildings</button>
+      <button class="pill" onclick="filterBuilding('Wyre', this)">Wyre</button>
+      <button class="pill" onclick="filterBuilding('Calder', this)">Calder</button>
+      <button class="pill" onclick="filterBuilding('Medlock', this)">Medlock</button>
+      <button class="pill" onclick="filterBuilding('Ribble', this)">Ribble</button>
+      <button class="pill" onclick="filterBuilding('Brock', this)">Brock</button>
+      <button class="pill" onclick="filterBuilding('Holland', this)">Holland</button>
+      <button class="pill" onclick="filterBuilding('Alt', this)">Alt</button>
+      <button class="pill" onclick="filterBuilding('Sports Hall', this)">Sports Hall</button>
+    </div>
+
+    <div class="glass pills-row" id="floorPills">
+      <button class="pill active" onclick="filterFloor('ALL', this)">All Floors</button>
+      <button class="pill" onclick="filterFloor('LG', this)">Lower Ground</button>
+      <button class="pill" onclick="filterFloor('G', this)">Ground Floor</button>
+      <button class="pill" onclick="filterFloor('1', this)">1st Floor</button>
+      <button class="pill" onclick="filterFloor('2', this)">2nd Floor</button>
+    </div>
+
+    <div class="glass pills-row" id="amenityPills">
+      <button class="pill active" onclick="filterAmenity('NONE', this)">Hide Facilities</button>
+      <button class="pill" onclick="filterAmenity('PRINTER', this)">🖨️ Printers</button>
+      <button class="pill" onclick="filterAmenity('WATER', this)">💧 Water</button>
+      <button class="pill" onclick="filterAmenity('LIFT', this)">🛗 Lifts</button>
+      <button class="pill" onclick="filterAmenity('STUDY', this)">💻 Study Hubs</button>
+      <button class="pill" id="accessBtn" onclick="toggleAccessibility(this)">♿ Step-Free: OFF</button>
+    </div>
+  </div>
+
+  <!-- Bottom Room Details Card -->
+  <div id="infoDrawer" class="glass bottom-drawer">
+    <div class="drawer-header">
+      <h2 id="roomTitle" style="font-size:20px;">Room W105</h2>
+      <span id="deptBadge" class="badge">Science</span>
+    </div>
+    <p id="roomSub" style="color: var(--text-sub); font-size: 13px;">Wyre Building • Floor 1</p>
+    <div class="btn-row">
+      <button class="btn secondary" onclick="setStartRoom()">Set Start</button>
+      <button class="btn" onclick="navigateHere()">Directions</button>
+      <button class="btn success" onclick="addToTimetable()">+ Timetable</button>
+      <button class="btn secondary" onclick="toggleBookmarkCurrent()">⭐ Favorite</button>
+    </div>
+  </div>
+
+  <!-- Navigation Banner -->
+  <div id="navBanner" class="glass nav-banner">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h4 id="navTitle" style="font-size:15px; font-weight:700;">Route Guidance</h4>
+      <div style="display:flex; gap:8px;">
+        <button onclick="speakDirections()" style="background:none; border:none; font-size:16px; cursor:pointer;" title="Read Aloud">🔊</button>
+        <button onclick="clearRoute()" style="background:none; border:none; color:var(--danger-color); font-weight:bold; cursor:pointer; font-size:13px;">Cancel</button>
+      </div>
+    </div>
+    <p id="navDesc" style="font-size:12px; color:var(--text-sub); margin-top:4px;">Turn-by-turn indoor directions:</p>
+    <ol id="navSteps" class="step-list"></ol>
+  </div>
+
+  <!-- Modals -->
+  <div id="legendModal" class="modal" onclick="closeModalOnOuterClick(event, 'legendModal')">
+    <div class="glass modal-content">
+      <h3>Campus Departments</h3>
+      <p style="font-size:12px; color:var(--text-sub); margin-top:4px;">Tap a department to highlight its rooms:</p>
+      <div id="deptGrid" class="dept-grid"></div>
+      <button class="btn secondary" style="width:100%; margin-top:16px;" onclick="toggleLegendModal()">Close</button>
+    </div>
+  </div>
+
+  <div id="timetableModal" class="modal" onclick="closeModalOnOuterClick(event, 'timetableModal')">
+    <div class="glass modal-content">
+      <h3>Daily Timetable Route Builder</h3>
+      <div id="timetableList" style="margin-top:12px; display:flex; flex-direction:column; gap:8px;"></div>
+      <div class="btn-row" style="margin-top:16px;">
+        <button class="btn secondary" onclick="clearTimetable()">Clear All</button>
+        <button class="btn success" onclick="calculateTimetableRoute()">Generate Path</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="favoritesModal" class="modal" onclick="closeModalOnOuterClick(event, 'favoritesModal')">
+    <div class="glass modal-content">
+      <h3>Saved Bookmarks</h3>
+      <div id="favoritesList" style="margin-top:12px; display:flex; flex-direction:column; gap:8px;"></div>
+      <button class="btn secondary" style="width:100%; margin-top:16px;" onclick="toggleFavoritesModal()">Close</button>
+    </div>
+  </div>
+
+  <script>
+    // Register PWA Offline Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW Registration failed', err));
+      });
+    }
+
+    // Initialize Map Canvas (1024x610)
+    const imgWidth = 1024, imgHeight = 610;
+    const bounds = [[0, 0], [imgHeight, imgWidth]];
+
+    const map = L.map('map', {
+      crs: L.CRS.Simple,
+      minZoom: -0.5,
+      maxZoom: 3,
+      zoomSnap: 0.25,
+      zoomControl: false,
+      maxBounds: bounds
+    });
+
+    const overlay = L.imageOverlay('Floor plan.jpg', bounds).addTo(map);
+    map.fitBounds(bounds);
+
+    const buildingBounds = {
+      "Wyre": [[130, 600], [600, 880]],
+      "Calder": [[50, 80], [420, 500]],
+      "Medlock": [[50, 250], [420, 600]],
+      "Ribble": [[10, 0], [400, 260]],
+      "Brock": [[300, 510], [600, 780]],
+      "Holland": [[450, 380], [600, 560]],
+      "Alt": [[250, 270], [500, 500]],
+      "Sports Hall": [[100, 780], [450, 880]]
+    };
+
+    const rooms = [
+      { id: "C213", bldg: "Calder", floor: "2", dept: "Social Sciences", color: "#8A2BE2", pos: [50, 140] },
+      { id: "C211", bldg: "Calder", floor: "2", dept: "Social Sciences", color: "#8A2BE2", pos: [50, 165] },
+      { id: "C209", bldg: "Calder", floor: "2", dept: "Social Sciences", color: "#8A2BE2", pos: [50, 190] },
+      { id: "C207", bldg: "Calder", floor: "2", dept: "Social Sciences", color: "#8A2BE2", pos: [50, 215] },
+      { id: "C205", bldg: "Calder", floor: "2", dept: "Performing Arts", color: "#0000CD", pos: [50, 240] },
+      { id: "C203", bldg: "Calder", floor: "2", dept: "Performing Arts", color: "#0000CD", pos: [50, 260] },
+      { id: "C112", bldg: "Calder", floor: "1", dept: "English & MFL", color: "#FF6B00", pos: [140, 200] },
+      { id: "C110", bldg: "Calder", floor: "1", dept: "English & MFL", color: "#FF6B00", pos: [140, 225] },
+      { id: "C108", bldg: "Calder", floor: "1", dept: "Business & IT", color: "#90E0EF", pos: [140, 255] },
+      { id: "C106", bldg: "Calder", floor: "1", dept: "Business & IT", color: "#90E0EF", pos: [140, 280] },
+      { id: "C016", bldg: "Calder", floor: "G", dept: "Mathematics", color: "#DAA520", pos: [260, 300] },
+      { id: "C015", bldg: "Calder", floor: "G", dept: "Mathematics", color: "#DAA520", pos: [260, 320] },
+      { id: "C011", bldg: "Calder", floor: "G", dept: "Mathematics", color: "#DAA520", pos: [260, 350] },
+      { id: "M202", bldg: "Medlock", floor: "2", dept: "Administration", color: "#696969", pos: [50, 300] },
+      { id: "M204", bldg: "Medlock", floor: "2", dept: "Business & IT", color: "#90E0EF", pos: [50, 340] },
+      { id: "M205", bldg: "Medlock", floor: "2", dept: "Business & IT", color: "#90E0EF", pos: [50, 360] },
+      { id: "M209", bldg: "Medlock", floor: "2", dept: "Science", color: "#FFB6C1", pos: [50, 390] },
+      { id: "M106", bldg: "Medlock", floor: "1", dept: "Administration", color: "#696969", pos: [140, 390] },
+      { id: "M109", bldg: "Medlock", floor: "1", dept: "Business & IT", color: "#90E0EF", pos: [140, 425] },
+      { id: "M110", bldg: "Medlock", floor: "1", dept: "Business & IT", color: "#90E0EF", pos: [140, 445] },
+      { id: "M114", bldg: "Medlock", floor: "1", dept: "Business & IT", color: "#90E0EF", pos: [140, 475] },
+      { id: "M005", bldg: "Medlock", floor: "G", dept: "Administration", color: "#696969", pos: [260, 435] },
+      { id: "M007", bldg: "Medlock", floor: "G", dept: "Administration", color: "#696969", pos: [260, 520] },
+      { id: "M009", bldg: "Medlock", floor: "G", dept: "Visual Arts", color: "#FF8C00", pos: [220, 545] },
+      { id: "R214", bldg: "Ribble", floor: "2", dept: "Humanities", color: "#FFA07A", pos: [210, 20] },
+      { id: "R212", bldg: "Ribble", floor: "2", dept: "Humanities", color: "#FFA07A", pos: [170, 20] },
+      { id: "R210", bldg: "Ribble", floor: "2", dept: "Humanities", color: "#FFA07A", pos: [130, 20] },
+      { id: "R110", bldg: "Ribble", floor: "1", dept: "Mathematics", color: "#DAA520", pos: [250, 115] },
+      { id: "R112", bldg: "Ribble", floor: "1", dept: "Mathematics", color: "#DAA520", pos: [290, 115] },
+      { id: "R001", bldg: "Ribble", floor: "G", dept: "Administration", color: "#696969", pos: [330, 205] },
+      { id: "B110", bldg: "Brock", floor: "1", dept: "Sport & Tourism", color: "#800040", pos: [540, 715] },
+      { id: "B108", bldg: "Brock", floor: "1", dept: "Sport & Tourism", color: "#800040", pos: [540, 665] },
+      { id: "B105", bldg: "Brock", floor: "1", dept: "Sport & Tourism", color: "#800040", pos: [540, 625] },
+      { id: "B005", bldg: "Brock", floor: "G", dept: "Administration", color: "#696969", pos: [375, 550] },
+      { id: "B004", bldg: "Brock", floor: "G", dept: "Administration", color: "#696969", pos: [375, 530] },
+      { id: "W215", bldg: "Wyre", floor: "2", dept: "Sport & Tourism", color: "#800040", pos: [580, 785] },
+      { id: "W212", bldg: "Wyre", floor: "2", dept: "Science", color: "#FFB6C1", pos: [500, 835] },
+      { id: "W211", bldg: "Wyre", floor: "2", dept: "Science", color: "#FFB6C1", pos: [510, 790] },
+      { id: "W114", bldg: "Wyre", floor: "1", dept: "Business & IT", color: "#90E0EF", pos: [485, 755] },
+      { id: "W113", bldg: "Wyre", floor: "1", dept: "Sport & Tourism", color: "#800040", pos: [485, 715] },
+      { id: "W105", bldg: "Wyre", floor: "1", dept: "Visual Arts", color: "#FF8C00", pos: [415, 715] },
+      { id: "W001", bldg: "Wyre", floor: "G", dept: "Learning Resources", color: "#87CEFA", pos: [260, 635] },
+      { id: "H005", bldg: "Holland", floor: "G", dept: "Performing Arts", color: "#0000CD", pos: [520, 420] },
+      { id: "H001", bldg: "Holland", floor: "LG", dept: "Performing Arts", color: "#0000CD", pos: [520, 500] },
+      { id: "A202", bldg: "Alt", floor: "1", dept: "Administration", color: "#696969", pos: [380, 320] },
+      { id: "A101", bldg: "Alt", floor: "G", dept: "Administration", color: "#696969", pos: [310, 470] },
+      { id: "S001", bldg: "Sports Hall", floor: "G", dept: "Sport & Tourism", color: "#800040", pos: [200, 830] }
+    ];
+
+    const amenities = [
+      { type: "PRINTER", name: "Brock IT Printing Hub", pos: [375, 540] },
+      { type: "PRINTER", name: "Wyre Library Printer", pos: [260, 650] },
+      { type: "WATER", name: "Calder Water Station", pos: [260, 280] },
+      { type: "LIFT", name: "Medlock Main Elevator", pos: [140, 400] },
+      { type: "LIFT", name: "Wyre Lift Hub", pos: [485, 735] },
+      { type: "STUDY", name: "Learning Resources Hub", pos: [260, 635] }
+    ];
+
+    const campusGraph = {
+      "WYRE_CORRIDOR_G": { pos: [260, 715], name: "Wyre Ground Corridor", edges: [{ node: "WYRE_CORRIDOR_1", weight: 1, type: "STAIRS" }, { node: "WYRE_LIFT", weight: 1, type: "LIFT" }] },
+      "WYRE_CORRIDOR_1": { pos: [450, 715], name: "Wyre First Floor Hall", edges: [{ node: "WYRE_CORRIDOR_G", weight: 1, type: "STAIRS" }, { node: "WYRE_CORRIDOR_2", weight: 1, type: "STAIRS" }, { node: "CALDER_CORRIDOR_1", weight: 1, type: "WALK" }, { node: "WYRE_LIFT", weight: 1, type: "LIFT" }] },
+      "WYRE_CORRIDOR_2": { pos: [540, 785], name: "Wyre Second Floor Hall", edges: [{ node: "WYRE_CORRIDOR_1", weight: 1, type: "STAIRS" }, { node: "WYRE_LIFT", weight: 1, type: "LIFT" }] },
+      "WYRE_LIFT": { pos: [485, 735], name: "Wyre Elevator", edges: [{ node: "WYRE_CORRIDOR_G", weight: 1, type: "LIFT" }, { node: "WYRE_CORRIDOR_1", weight: 1, type: "LIFT" }, { node: "WYRE_CORRIDOR_2", weight: 1, type: "LIFT" }] },
+      "CALDER_CORRIDOR_1": { pos: [140, 300], name: "Calder First Floor Corridor", edges: [{ node: "WYRE_CORRIDOR_1", weight: 1, type: "WALK" }, { node: "CALDER_CORRIDOR_2", weight: 1, type: "STAIRS" }, { node: "MEDLOCK_CORRIDOR_1", weight: 1, type: "WALK" }] },
+      "CALDER_CORRIDOR_2": { pos: [50, 200], name: "Calder Second Floor Corridor", edges: [{ node: "CALDER_CORRIDOR_1", weight: 1, type: "STAIRS" }] },
+      "MEDLOCK_CORRIDOR_1": { pos: [140, 450], name: "Medlock First Floor Corridor", edges: [{ node: "CALDER_CORRIDOR_1", weight: 1, type: "WALK" }, { node: "BROCK_CORRIDOR_1", weight: 1, type: "WALK" }] },
+      "BROCK_CORRIDOR_1": { pos: [540, 650], name: "Brock Corridor", edges: [{ node: "MEDLOCK_CORRIDOR_1", weight: 1, type: "WALK" }] }
+    };
+
+    const roomToNode = {
+      "W105": "WYRE_CORRIDOR_1", "W113": "WYRE_CORRIDOR_1", "W114": "WYRE_CORRIDOR_1",
+      "W211": "WYRE_CORRIDOR_2", "W212": "WYRE_CORRIDOR_2", "W215": "WYRE_CORRIDOR_2", "W001": "WYRE_CORRIDOR_G",
+      "C112": "CALDER_CORRIDOR_1", "C110": "CALDER_CORRIDOR_1", "C108": "CALDER_CORRIDOR_1", "C106": "CALDER_CORRIDOR_1",
+      "C213": "CALDER_CORRIDOR_2", "C211": "CALDER_CORRIDOR_2", "C209": "CALDER_CORRIDOR_2", "C207": "CALDER_CORRIDOR_2", "C205": "CALDER_CORRIDOR_2", "C203": "CALDER_CORRIDOR_2",
+      "C016": "CALDER_CORRIDOR_1", "C015": "CALDER_CORRIDOR_1", "C011": "CALDER_CORRIDOR_1",
+      "M109": "MEDLOCK_CORRIDOR_1", "M110": "MEDLOCK_CORRIDOR_1", "M114": "MEDLOCK_CORRIDOR_1", "M106": "MEDLOCK_CORRIDOR_1",
+      "M202": "MEDLOCK_CORRIDOR_1", "M204": "MEDLOCK_CORRIDOR_1", "M205": "MEDLOCK_CORRIDOR_1", "M209": "MEDLOCK_CORRIDOR_1",
+      "M005": "MEDLOCK_CORRIDOR_1", "M007": "MEDLOCK_CORRIDOR_1", "M009": "MEDLOCK_CORRIDOR_1",
+      "B105": "BROCK_CORRIDOR_1", "B108": "BROCK_CORRIDOR_1", "B110": "BROCK_CORRIDOR_1", "B004": "BROCK_CORRIDOR_1", "B005": "BROCK_CORRIDOR_1",
+      "R214": "CALDER_CORRIDOR_2", "R212": "CALDER_CORRIDOR_2", "R210": "CALDER_CORRIDOR_2", "R110": "CALDER_CORRIDOR_1", "R112": "CALDER_CORRIDOR_1", "R001": "CALDER_CORRIDOR_1",
+      "H005": "WYRE_CORRIDOR_G", "H001": "WYRE_CORRIDOR_G", "A202": "CALDER_CORRIDOR_1", "A101": "CALDER_CORRIDOR_1", "S001": "WYRE_CORRIDOR_G"
+    };
+
+    let stepFreeMode = false;
+
+    function findDijkstraRoute(startRoomId, endRoomId) {
+      const startNode = roomToNode[startRoomId] || "WYRE_CORRIDOR_1";
+      const endNode = roomToNode[endRoomId] || "CALDER_CORRIDOR_1";
+
+      let distances = {};
+      let previous = {};
+      let unvisited = new Set(Object.keys(campusGraph));
+
+      for (let n in campusGraph) distances[n] = Infinity;
+      distances[startNode] = 0;
+
+      while (unvisited.size > 0) {
+        let current = Array.from(unvisited).reduce((minNode, node) => 
+          distances[node] < distances[minNode] ? node : minNode
+        );
+
+        if (current === endNode || distances[current] === Infinity) break;
+        unvisited.delete(current);
+
+        for (let edge of campusGraph[current].edges) {
+          if (stepFreeMode && edge.type === 'STAIRS') continue;
+
+          if (unvisited.has(edge.node)) {
+            let alt = distances[current] + edge.weight;
+            if (alt < distances[edge.node]) {
+              distances[edge.node] = alt;
+              previous[edge.node] = current;
+            }
+          }
+        }
+      }
+
+      let pathNodes = [];
+      let curr = endNode;
+      while (curr) {
+        pathNodes.unshift(curr);
+        curr = previous[curr];
+      }
+
+      const startRoom = rooms.find(r => r.id === startRoomId);
+      const endRoom = rooms.find(r => r.id === endRoomId);
+
+      let coords = pathNodes.map(n => campusGraph[n].pos);
+      if (startRoom) coords.unshift(startRoom.pos);
+      if (endRoom) coords.push(endRoom.pos);
+
+      return { pathNodes, coords, startRoom, endRoom };
+    }
+
+    let activeBuilding = 'ALL';
+    let activeFloor = 'ALL';
+    let activeAmenity = 'NONE';
+    let selectedRoom = null;
+    let startRoom = null;
+    let timetableQueue = [];
+    let favoriteRooms = JSON.parse(localStorage.getItem('fav_rooms') || '[]');
+
+    let markersLayer = L.layerGroup().addTo(map);
+    let amenitiesLayer = L.layerGroup().addTo(map);
+    let routePolyline = null;
+    let pinMarkersGroup = L.layerGroup().addTo(map);
+
+    let userLocationPos = [260, 715];
+    let liveTrackingActive = false;
+    let watchGeoId = null;
+    let userLocationMarker = null;
+    let manualCalibrationActive = false;
+
+    function renderMap() {
+      markersLayer.clearLayers();
+      rooms.forEach(room => {
+        if (activeBuilding !== 'ALL' && room.bldg !== activeBuilding) return;
+        if (activeFloor !== 'ALL' && room.floor !== activeFloor) return;
+
+        const circle = L.circleMarker(room.pos, {
+          radius: 9, fillColor: room.color, color: '#ffffff', weight: 2, fillOpacity: 0.95
+        });
+
+        circle.on('click', () => {
+          if (!manualCalibrationActive) openRoomDrawer(room);
+        });
+        markersLayer.addLayer(circle);
+      });
+    }
+
+    function renderAmenities() {
+      amenitiesLayer.clearLayers();
+      if (activeAmenity === 'NONE') return;
+
+      amenities.forEach(item => {
+        if (item.type !== activeAmenity) return;
+        const iconHtml = item.type === 'PRINTER' ? '🖨️' : item.type === 'WATER' ? '💧' : item.type === 'LIFT' ? '🛗' : '💻';
+        const customIcon = L.divIcon({
+          html: `<div style="font-size:16px; background:#fff; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(0,0,0,0.5);">${iconHtml}</div>`,
+          className: '', iconSize: [28, 28]
+        });
+        const marker = L.marker(item.pos, { icon: customIcon });
+        marker.bindPopup(`<strong style="color:#111">${item.name}</strong>`);
+        amenitiesLayer.addLayer(marker);
+      });
+    }
+
+    function openRoomDrawer(room) {
+      selectedRoom = room;
+      document.getElementById('roomTitle').innerText = `Room ${room.id}`;
+      document.getElementById('roomSub').innerText = `${room.bldg} Building • Floor ${room.floor}`;
+      const badge = document.getElementById('deptBadge');
+      badge.innerText = room.dept;
+      badge.style.backgroundColor = room.color;
+      document.getElementById('infoDrawer').style.display = 'block';
+      map.flyTo(room.pos, 1.5, { duration: 0.6 });
+    }
+
+    function initUserLocationMarker() {
+      if (userLocationMarker) map.removeLayer(userLocationMarker);
+      const compassHtml = `<div class="user-location-container"><div class="vision-cone" id="visionCone"></div><div class="user-dot"></div></div>`;
+      const compassIcon = L.divIcon({ html: compassHtml, className: '', iconSize: [48, 48], iconAnchor: [24, 24] });
+      userLocationMarker = L.marker(userLocationPos, { icon: compassIcon, zIndexOffset: 1000 }).addTo(map);
+    }
+
+    function updateUserHeading(deg) {
+      const cone = document.getElementById('visionCone');
+      if (cone) cone.style.transform = `rotate(${deg}deg)`;
+    }
+
+    function enableCompassHardware() {
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission().then(state => {
+          if (state === 'granted') window.addEventListener('deviceorientation', handleOrientation, true);
+        }).catch(console.error);
+      } else {
+        window.addEventListener('deviceorientationabsolute', handleOrientation, true) ||
+        window.addEventListener('deviceorientation', handleOrientation, true);
+      }
+    }
+
+    function handleOrientation(event) {
+      let heading = event.webkitCompassHeading || (360 - event.alpha) || 0;
+      updateUserHeading(Math.round(heading));
+    }
+
+    function toggleLiveLocation() {
+      liveTrackingActive = !liveTrackingActive;
+      const btn = document.getElementById('locBtn');
+      if (liveTrackingActive) {
+        btn.classList.add('active-loc');
+        initUserLocationMarker();
+        enableCompassHardware();
+        if (navigator.geolocation) {
+          watchGeoId = navigator.geolocation.watchPosition(pos => {
+            const mappedY = Math.min(Math.max(200, (pos.coords.latitude % 0.01) * 50000), 550);
+            const mappedX = Math.min(Math.max(200, (pos.coords.longitude % 0.01) * 50000), 850);
+            userLocationPos = [mappedY, mappedX];
+            if (userLocationMarker) userLocationMarker.setLatLng(userLocationPos);
+          }, null, { enableHighAccuracy: true });
+        }
+        map.flyTo(userLocationPos, 1.5);
+      } else {
+        btn.classList.remove('active-loc');
+        if (watchGeoId) navigator.geolocation.clearWatch(watchGeoId);
+        if (userLocationMarker) map.removeLayer(userLocationMarker);
+      }
+    }
+
+    function enableManualCalibration() {
+      manualCalibrationActive = true;
+      alert("Tap anywhere on the map to pinpoint your location!");
+      map.once('click', (e) => {
+        userLocationPos = [Math.round(e.latlng.lat), Math.round(e.latlng.lng)];
+        initUserLocationMarker();
+        enableCompassHardware();
+        manualCalibrationActive = false;
+      });
+    }
+
+    function setStartRoom() {
+      startRoom = selectedRoom;
+      alert(`Start set to Room ${startRoom.id}`);
+      document.getElementById('infoDrawer').style.display = 'none';
+    }
+
+    function navigateHere() {
+      if (!startRoom) startRoom = rooms.find(r => r.id === 'W105');
+      if (!selectedRoom || startRoom.id === selectedRoom.id) return;
+
+      clearRoute();
+      const result = findDijkstraRoute(startRoom.id, selectedRoom.id);
+
+      routePolyline = L.polyline(result.coords, {
+        color: '#007aff', weight: 6, lineCap: 'round', lineJoin: 'round', dashArray: '8, 8'
+      }).addTo(map);
+
+      const startPin = L.circleMarker(result.startRoom.pos, { radius: 10, fillColor: '#34c759', color: '#fff', weight: 3, fillOpacity: 1 });
+      const destPin = L.circleMarker(result.endRoom.pos, { radius: 10, fillColor: '#ff3b30', color: '#fff', weight: 3, fillOpacity: 1 });
+      pinMarkersGroup.addLayer(startPin);
+      pinMarkersGroup.addLayer(destPin);
+
+      const stepsContainer = document.getElementById('navSteps');
+      stepsContainer.innerHTML = '';
+      let step1 = document.createElement('li');
+      step1.innerText = `Exit Room ${startRoom.id} (${startRoom.bldg} Building, Floor ${startRoom.floor}).`;
+      stepsContainer.appendChild(step1);
+
+      result.pathNodes.forEach(node => {
+        let li = document.createElement('li');
+        li.innerText = `Walk through ${campusGraph[node].name}.`;
+        stepsContainer.appendChild(li);
+      });
+
+      let stepLast = document.createElement('li');
+      stepLast.innerText = `Arrive at Room ${selectedRoom.id} (${selectedRoom.bldg} Building, Floor ${selectedRoom.floor}).`;
+      stepsContainer.appendChild(stepLast);
+
+      document.getElementById('infoDrawer').style.display = 'none';
+      document.getElementById('navBanner').style.display = 'block';
+      document.getElementById('navTitle').innerText = `Path: ${startRoom.id} → ${selectedRoom.id}`;
+      map.fitBounds(routePolyline.getBounds(), { padding: [60, 60] });
+    }
+
+    function speakDirections() {
+      if (!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const steps = Array.from(document.querySelectorAll('#navSteps li')).map(li => li.innerText).join('. ');
+      window.speechSynthesis.speak(new SpeechSynthesisUtterance(steps));
+    }
+
+    function clearRoute() {
+      if (routePolyline) map.removeLayer(routePolyline);
+      pinMarkersGroup.clearLayers();
+      document.getElementById('navBanner').style.display = 'none';
+      startRoom = null;
+    }
+
+    function filterBuilding(bldg, btn) {
+      activeBuilding = bldg; updatePills('bldgPills', btn); renderMap();
+      if (bldg !== 'ALL' && buildingBounds[bldg]) map.fitBounds(buildingBounds[bldg], { padding: [30, 30] });
+      else map.fitBounds(bounds);
+    }
+
+    function filterFloor(floor, btn) { activeFloor = floor; updatePills('floorPills', btn); renderMap(); }
+    function filterAmenity(type, btn) { activeAmenity = type; updatePills('amenityPills', btn); renderAmenities(); }
+
+    function toggleAccessibility(btn) {
+      stepFreeMode = !stepFreeMode;
+      btn.innerText = stepFreeMode ? "♿ Step-Free: ON" : "♿ Step-Free: OFF";
+      btn.classList.toggle('toggle-active', stepFreeMode);
+      if (routePolyline) navigateHere();
+    }
+
+    function updatePills(containerId, activeBtn) {
+      document.querySelectorAll(`#${containerId} .pill`).forEach(b => b.classList.remove('active'));
+      activeBtn.classList.add('active');
+    }
+
+    function toggleTheme() {
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      document.documentElement.setAttribute('data-theme', currentTheme === 'dark' ? 'light' : 'dark');
+    }
+
+    function zoomIn() { map.zoomIn(); }
+    function zoomOut() { map.zoomOut(); }
+
+    const searchInput = document.getElementById('searchInput');
+    const suggestions = document.getElementById('suggestions');
+
+    searchInput.addEventListener('input', (e) => {
+      const query = e.target.value.trim().toUpperCase();
+      suggestions.innerHTML = '';
+      if (!query) { suggestions.style.display = 'none'; return; }
+
+      const matches = rooms.filter(r => r.id.includes(query) || r.dept.toUpperCase().includes(query) || r.bldg.toUpperCase().includes(query));
+      if (matches.length > 0) {
+        suggestions.style.display = 'block';
+        matches.forEach(m => {
+          const div = document.createElement('div');
+          div.className = 'suggestion-item';
+          div.innerHTML = `<span><strong>${m.id}</strong> — ${m.dept}</span><span style="color:var(--text-sub); font-size:12px;">${m.bldg} Flr ${m.floor}</span>`;
+          div.onclick = () => { searchInput.value = m.id; suggestions.style.display = 'none'; openRoomDrawer(m); };
+          suggestions.appendChild(div);
+        });
+      } else { suggestions.style.display = 'none'; }
+    });
+
+    function addToTimetable() {
+      if (!selectedRoom) return;
+      if (!timetableQueue.find(r => r.id === selectedRoom.id)) {
+        timetableQueue.push(selectedRoom);
+        alert(`Room ${selectedRoom.id} added to Timetable!`);
+      }
+    }
+
+    function toggleTimetableModal() {
+      const list = document.getElementById('timetableList');
+      list.innerHTML = '';
+      if (timetableQueue.length === 0) {
+        list.innerHTML = '<p style="font-size:13px; color:var(--text-sub);">No classes added yet.</p>';
+      } else {
+        timetableQueue.forEach((room, index) => {
+          const div = document.createElement('div');
+          div.style.cssText = 'padding:10px; background:rgba(125,125,125,0.1); border-radius:8px; display:flex; justify-content:space-between; align-items:center;';
+          div.innerHTML = `<span><strong>Stop ${index + 1}:</strong> Room ${room.id} (${room.bldg})</span><button onclick="removeFromTimetable(${index})" style="background:none; border:none; color:var(--danger-color); font-weight:bold; cursor:pointer;">✕</button>`;
+          list.appendChild(div);
+        });
+      }
+      const modal = document.getElementById('timetableModal');
+      modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+    }
+
+    function removeFromTimetable(index) { timetableQueue.splice(index, 1); toggleTimetableModal(); toggleTimetableModal(); }
+    function clearTimetable() { timetableQueue = []; toggleTimetableModal(); toggleTimetableModal(); }
+
+    function calculateTimetableRoute() {
+      if (timetableQueue.length < 2) { alert("Add at least 2 class stops."); return; }
+      clearRoute();
+      let fullCoords = [];
+      for (let i = 0; i < timetableQueue.length - 1; i++) {
+        const res = findDijkstraRoute(timetableQueue[i].id, timetableQueue[i+1].id);
+        fullCoords = fullCoords.concat(res.coords);
+      }
+      routePolyline = L.polyline(fullCoords, { color: '#34c759', weight: 6, dashArray: '6, 6' }).addTo(map);
+      toggleTimetableModal();
+      document.getElementById('navBanner').style.display = 'block';
+      document.getElementById('navTitle').innerText = `Schedule Path (${timetableQueue.length} Stops)`;
+      document.getElementById('navSteps').innerHTML = `<li>Full route: ${timetableQueue.map(r => r.id).join(' → ')}</li>`;
+      map.fitBounds(routePolyline.getBounds(), { padding: [60, 60] });
+    }
+
+    function toggleLegendModal() {
+      const grid = document.getElementById('deptGrid');
+      grid.innerHTML = '';
+      const depts = [
+        { name: "Business & IT", color: "#90E0EF" }, { name: "English & MFL", color: "#FF6B00" },
+        { name: "Humanities", color: "#FFA07A" }, { name: "Sport & Tourism", color: "#800040" },
+        { name: "Mathematics", color: "#DAA520" }, { name: "Performing Arts", color: "#0000CD" },
+        { name: "Science", color: "#FFB6C1" }, { name: "Social Sciences", color: "#8A2BE2" },
+        { name: "Visual Arts", color: "#FF8C00" }, { name: "Administration", color: "#696969" }
+      ];
+      depts.forEach(d => {
+        const item = document.createElement('div');
+        item.className = 'dept-item';
+        item.style.backgroundColor = d.color;
+        item.innerText = d.name;
+        item.onclick = () => { toggleLegendModal(); highlightDeptRooms(d.name); };
+        grid.appendChild(item);
+      });
+      const modal = document.getElementById('legendModal');
+      modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+    }
+
+    function highlightDeptRooms(deptName) {
+      markersLayer.clearLayers();
+      rooms.filter(r => r.dept === deptName).forEach(room => {
+        const circle = L.circleMarker(room.pos, { radius: 11, fillColor: room.color, color: '#fff', weight: 3, fillOpacity: 1 });
+        circle.on('click', () => openRoomDrawer(room));
+        markersLayer.addLayer(circle);
+      });
+    }
+
+    function toggleBookmarkCurrent() {
+      if (!selectedRoom) return;
+      if (!favoriteRooms.includes(selectedRoom.id)) {
+        favoriteRooms.push(selectedRoom.id);
+        localStorage.setItem('fav_rooms', JSON.stringify(favoriteRooms));
+        alert(`Room ${selectedRoom.id} saved to Bookmarks!`);
+      }
+    }
+
+    function toggleFavoritesModal() {
+      const list = document.getElementById('favoritesList');
+      list.innerHTML = '';
+      if (favoriteRooms.length === 0) {
+        list.innerHTML = '<p style="font-size:13px; color:var(--text-sub);">No bookmarked rooms yet.</p>';
+      } else {
+        favoriteRooms.forEach(id => {
+          const room = rooms.find(r => r.id === id);
+          if (room) {
+            const div = document.createElement('div');
+            div.style.cssText = 'padding:10px; background:rgba(125,125,125,0.1); border-radius:8px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;';
+            div.innerHTML = `<span><strong>Room ${room.id}</strong> (${room.bldg})</span><button onclick="removeBookmark('${room.id}')" style="background:none; border:none; color:var(--danger-color); font-weight:bold; cursor:pointer;">✕</button>`;
+            div.onclick = (e) => { if (e.target.tagName !== 'BUTTON') { toggleFavoritesModal(); openRoomDrawer(room); } };
+            list.appendChild(div);
+          }
+        });
+      }
+      const modal = document.getElementById('favoritesModal');
+      modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+    }
+
+    function removeBookmark(id) {
+      favoriteRooms = favoriteRooms.filter(r => r !== id);
+      localStorage.setItem('fav_rooms', JSON.stringify(favoriteRooms));
+      toggleFavoritesModal(); toggleFavoritesModal();
+    }
+
+    function closeModalOnOuterClick(e, modalId) {
+      if (e.target.id === modalId) document.getElementById(modalId).style.display = 'none';
+    }
+
+    renderMap();
+  </script>
+</body>
+</html>
