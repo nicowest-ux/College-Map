@@ -1,0 +1,31 @@
+name: Audit floorplan labels
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "floorplan.png"
+      - "tools/extract_floorplan.py"
+      - ".github/workflows/floorplan-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install OCR dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr
+          python -m pip install --disable-pip-version-check pillow
+      - name: Extract floorplan labels
+        run: python tools/extract_floorplan.py
+      - name: Upload floorplan audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: floorplan-audit
+          path: audit/floorplan-ocr.json
