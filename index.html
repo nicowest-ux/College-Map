@@ -1,186 +1,39 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en" data-theme="system">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#0b5fff" />
-  <meta name="description" content="Fast, accessible indoor campus navigation." />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="Campus Map" />
-  <title>Campus Map</title>
-  <link rel="manifest" href="manifest.json" />
-  <link rel="apple-touch-icon" href="icon-192.png" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
-  <link rel="stylesheet" href="styles.css" />
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b5fff"><meta name="description" content="Accurate indoor campus wayfinding">
+<link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><link rel="stylesheet" href="styles.css">
+<title>Campus Navigator</title>
 </head>
 <body>
-  <a class="skip-link" href="#map">Skip to map</a>
-
-  <div id="offlineBanner" class="status-banner" role="status" hidden>You’re offline — the campus map still works.</div>
-  <div id="updateBanner" class="update-banner" hidden>
-    <span>A newer version is ready.</span><button id="reloadAppBtn" class="text-btn">Refresh</button>
-  </div>
-
-  <main class="app-shell">
-    <section id="map" class="map" aria-label="Interactive campus map"></section>
-
-    <header class="topbar" aria-label="Campus map controls">
-      <div class="brand-row">
-        <div class="brand-mark" aria-hidden="true">CM</div>
-        <div class="brand-copy">
-          <strong>Campus Map</strong>
-          <span id="contextLabel">All buildings · All floors</span>
-        </div>
-        <button id="moreBtn" class="icon-button subtle" aria-label="Open settings and tools" title="More">•••</button>
-      </div>
-
-      <button id="searchTrigger" class="search-trigger" aria-haspopup="dialog">
-        <span aria-hidden="true">⌕</span>
-        <span>Where do you want to go?</span>
-        <kbd>/</kbd>
-      </button>
-
-      <div class="quick-row" aria-label="Quick filters">
-        <button id="buildingFilterBtn" class="chip">Building <span>All</span></button>
-        <button id="floorFilterBtn" class="chip">Floor <span>All</span></button>
-        <button id="facilityFilterBtn" class="chip">Facilities</button>
-        <button id="stepFreeQuickBtn" class="chip" aria-pressed="false">♿ Step-free</button>
-      </div>
-    </header>
-
-    <div class="map-tools" aria-label="Map tools">
-      <button id="positionBtn" class="map-tool" aria-label="Set my indoor position" title="Set my position">◎</button>
-      <button id="fitBtn" class="map-tool" aria-label="Show whole campus" title="Show whole campus">⌂</button>
-      <button id="zoomInBtn" class="map-tool" aria-label="Zoom in">＋</button>
-      <button id="zoomOutBtn" class="map-tool" aria-label="Zoom out">−</button>
-    </div>
-
-    <section id="roomCard" class="sheet room-card" aria-live="polite" hidden>
-      <div class="sheet-handle" aria-hidden="true"></div>
-      <div class="room-heading">
-        <div>
-          <p id="roomEyebrow" class="eyebrow">Room</p>
-          <h2 id="roomTitle">W105</h2>
-          <p id="roomMeta" class="muted"></p>
-        </div>
-        <button id="closeRoomBtn" class="icon-button subtle" aria-label="Close room details">×</button>
-      </div>
-      <div class="room-actions">
-        <button id="directionsBtn" class="primary-button">Directions</button>
-        <button id="setStartBtn" class="secondary-button">Set as start</button>
-        <button id="favoriteBtn" class="secondary-button" aria-pressed="false">☆ Save</button>
-      </div>
-      <button id="addStopBtn" class="inline-action">＋ Add to day route</button>
-    </section>
-
-    <section id="routePanel" class="route-panel" hidden aria-live="polite">
-      <div class="route-topline">
-        <div>
-          <p class="eyebrow">Route</p>
-          <h2 id="routeTitle">W105 → C112</h2>
-          <p id="routeSummary" class="muted"></p>
-        </div>
-        <button id="closeRouteBtn" class="icon-button" aria-label="End route">×</button>
-      </div>
-      <div class="route-actions-mini">
-        <button id="speakRouteBtn" class="mini-button">🔊 Read aloud</button>
-        <button id="shareRouteBtn" class="mini-button">↗ Share</button>
-      </div>
-      <ol id="routeSteps" class="route-steps"></ol>
-    </section>
-
-    <nav class="bottom-nav" aria-label="Main navigation">
-      <button class="nav-item active" data-action="map"><span>⌖</span><small>Map</small></button>
-      <button class="nav-item" data-action="navigate"><span>➜</span><small>Navigate</small></button>
-      <button class="nav-item" data-action="saved"><span>☆</span><small>Saved</small></button>
-      <button class="nav-item" data-action="day"><span>▦</span><small>My day</small></button>
-    </nav>
-  </main>
-
-  <div id="modalBackdrop" class="modal-backdrop" hidden></div>
-
-  <section id="searchModal" class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="searchHeading" hidden>
-    <div class="modal-header">
-      <div><p class="eyebrow">Find a destination</p><h2 id="searchHeading">Search campus</h2></div>
-      <button class="icon-button subtle" data-close="searchModal" aria-label="Close search">×</button>
-    </div>
-    <label class="search-box">
-      <span aria-hidden="true">⌕</span>
-      <input id="searchInput" autocomplete="off" inputmode="search" placeholder="Room, department, building or facility" />
-      <button id="clearSearchBtn" class="clear-input" type="button" aria-label="Clear search">×</button>
-    </label>
-    <div id="recentWrap" class="modal-section">
-      <div class="section-title"><h3>Recent</h3><button id="clearRecentsBtn" class="text-btn">Clear</button></div>
-      <div id="recentList" class="stack-list"></div>
-    </div>
-    <div class="modal-section"><h3>Results</h3><div id="searchResults" class="stack-list"></div></div>
-  </section>
-
-  <section id="navigateModal" class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="navigateHeading" hidden>
-    <div class="modal-header">
-      <div><p class="eyebrow">Indoor directions</p><h2 id="navigateHeading">Plan a route</h2></div>
-      <button class="icon-button subtle" data-close="navigateModal" aria-label="Close route planner">×</button>
-    </div>
-    <div class="route-form">
-      <button id="fromPicker" class="picker-row"><span><small>From</small><strong id="fromLabel">Choose starting point</strong></span><span>›</span></button>
-      <button id="swapRouteBtn" class="swap-button" aria-label="Swap start and destination">⇅</button>
-      <button id="toPicker" class="picker-row"><span><small>To</small><strong id="toLabel">Choose destination</strong></span><span>›</span></button>
-    </div>
-    <label class="toggle-row">
-      <span><strong>Step-free route</strong><small>Avoid stairs where an accessible graph path exists</small></span>
-      <input id="stepFreeToggle" type="checkbox" />
-    </label>
-    <div class="route-start-actions">
-      <button id="useMapPositionBtn" class="secondary-button">Use my map position</button>
-      <button id="startRouteBtn" class="primary-button">Start route</button>
-    </div>
-    <p class="hint">Indoor GPS is unreliable. For accurate guidance, set your position by tapping the map or selecting the room you are currently near.</p>
-  </section>
-
-  <section id="pickerModal" class="modal-sheet nested" role="dialog" aria-modal="true" aria-labelledby="pickerHeading" hidden>
-    <div class="modal-header">
-      <h2 id="pickerHeading">Choose room</h2>
-      <button class="icon-button subtle" data-close="pickerModal" aria-label="Close picker">×</button>
-    </div>
-    <label class="search-box"><span>⌕</span><input id="pickerSearch" placeholder="Search rooms" /></label>
-    <div id="pickerResults" class="stack-list"></div>
-  </section>
-
-  <section id="filterModal" class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="filterHeading" hidden>
-    <div class="modal-header"><h2 id="filterHeading">Map filters</h2><button class="icon-button subtle" data-close="filterModal" aria-label="Close filters">×</button></div>
-    <div id="filterContent"></div>
-    <button id="resetFiltersBtn" class="secondary-button full">Reset filters</button>
-  </section>
-
-  <section id="savedModal" class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="savedHeading" hidden>
-    <div class="modal-header"><h2 id="savedHeading">Saved places</h2><button class="icon-button subtle" data-close="savedModal" aria-label="Close saved places">×</button></div>
-    <div id="savedList" class="stack-list"></div>
-  </section>
-
-  <section id="dayModal" class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="dayHeading" hidden>
-    <div class="modal-header"><div><p class="eyebrow">Multi-stop</p><h2 id="dayHeading">My day route</h2></div><button class="icon-button subtle" data-close="dayModal" aria-label="Close day route">×</button></div>
-    <div id="dayList" class="stack-list"></div>
-    <div class="two-col"><button id="clearDayBtn" class="secondary-button">Clear</button><button id="buildDayBtn" class="primary-button">Build route</button></div>
-  </section>
-
-  <section id="moreModal" class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="moreHeading" hidden>
-    <div class="modal-header"><h2 id="moreHeading">Settings & tools</h2><button class="icon-button subtle" data-close="moreModal" aria-label="Close settings">×</button></div>
-    <div class="settings-list">
-      <button id="themeBtn" class="settings-row"><span>Appearance</span><strong id="themeValue">System</strong></button>
-      <button id="departmentBtn" class="settings-row"><span>Departments</span><strong>View legend ›</strong></button>
-      <button id="installBtn" class="settings-row" hidden><span>Install app</span><strong>Add to device ›</strong></button>
-      <button id="clearPositionBtn" class="settings-row"><span>Indoor position</span><strong>Clear ›</strong></button>
-    </div>
-    <div id="departmentLegend" class="department-grid" hidden></div>
-    <p class="version">Campus Map Pro · v4</p>
-  </section>
-
-  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-  <script src="data.js"></script>
-  <script src="app.js"></script>
-</body>
-</html>
+<div id="offline" class="banner" hidden>Offline mode — saved map data is still available.</div>
+<main>
+  <div id="map" aria-label="Interactive campus floor plans"></div>
+  <header class="topbar">
+    <div class="brand"><span class="logo">CN</span><span><b>Campus Navigator</b><small id="context">All campus floor plans</small></span><button id="menuBtn" class="icon">⋯</button></div>
+    <button id="searchBtn" class="search">⌕ <span>Search room, department or place</span></button>
+    <div class="chips"><button id="assistantBtn">✦ Assistant</button><button id="locateBtn">◎ My position</button><button id="trackingBtn">◉ Follow me</button><button id="studioBtn">⌖ Map Studio</button></div>
+  </header>
+  <aside id="assistantCard" class="assistant-card" hidden>
+    <div class="assistant-head"><div><small>Navigation assistant</small><h2 id="assistantTitle">Where do you need to go?</h2></div><button id="assistantClose" class="icon">×</button></div>
+    <div id="assistantFeed" class="feed"><div class="bot">Try “take me to B014”, “I’m at B007”, or “step-free to W105”.</div></div>
+    <div class="assistant-entry"><input id="assistantInput" placeholder="Ask for directions…"><button id="assistantSend">Send</button></div>
+  </aside>
+  <aside id="routeCard" class="route-card" hidden>
+    <div class="route-head"><div><small>Guidance</small><h2 id="routeTitle"></h2><p id="routeStatus"></p></div><button id="endRoute" class="icon">×</button></div>
+    <div id="nextInstruction" class="next-step"></div><ol id="routeSteps"></ol>
+    <div class="route-actions"><button id="prevStep">Back</button><button id="nextStep">Next</button><button id="speakStep">🔊 Speak</button></div>
+  </aside>
+  <div id="accuracyBadge" class="accuracy">Map accuracy: <b id="accuracyText">loading…</b></div>
+  <nav class="bottom"><button data-tab="map" class="active">⌖<small>Map</small></button><button data-tab="search">⌕<small>Find</small></button><button data-tab="assistant">✦<small>Guide</small></button><button data-tab="saved">☆<small>Saved</small></button></nav>
+</main>
+<div id="backdrop" class="backdrop" hidden></div>
+<section id="searchSheet" class="sheet" hidden><header><div><small>Destination</small><h2>Find a room</h2></div><button class="icon close">×</button></header><input id="roomSearch" class="big-input" placeholder="e.g. B014, Exams, Tech Support"><div id="searchResults" class="results"></div></section>
+<section id="roomSheet" class="sheet" hidden><header><div><small id="roomKind">Room</small><h2 id="roomName"></h2><p id="roomMeta"></p></div><button class="icon close">×</button></header><div id="roomAccuracy" class="room-accuracy"></div><div class="actions"><button id="setHere">I’m here</button><button id="goHere" class="primary">Directions</button><button id="saveRoom">☆ Save</button></div><button id="calibrateRoom" class="link-btn">Correct this room position</button></section>
+<section id="positionSheet" class="sheet" hidden><header><div><small>Indoor positioning</small><h2>Set your location</h2></div><button class="icon close">×</button></header><p>Indoor GPS is not accurate enough to place you on a room plan. Start from a known room or tap your exact location, then Follow Me can estimate movement using your phone’s heading and motion sensors.</p><div class="actions"><button id="chooseStart">Choose room</button><button id="tapStart" class="primary">Tap map</button></div><div id="positionInfo" class="info"></div></section>
+<section id="studioSheet" class="sheet wide" hidden><header><div><small>Administrator tool</small><h2>Map Studio</h2></div><button class="icon close">×</button></header><p>Calibrate every room against the source floor plan. Select a room, then tap the exact room/door location. Corrections are saved on this device and can be exported/imported.</p><div class="studio-grid"><select id="studioRoom"></select><button id="studioPlace" class="primary">Place selected room</button></div><div class="actions"><button id="exportData">Export calibration</button><label class="file-btn">Import calibration<input id="importData" type="file" accept="application/json" hidden></label><button id="clearCalibration">Reset local corrections</button></div><div id="studioStats" class="info"></div></section>
+<div id="toast" class="toast" hidden></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="data.js"></script><script src="app.js"></script>
+</body></html>
