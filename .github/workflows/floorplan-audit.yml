@@ -28,4 +28,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: floorplan-audit
-          path: audit/floorplan-ocr.json
+          path: |
+            audit/floorplan-ocr.json
+            floorplan.png
