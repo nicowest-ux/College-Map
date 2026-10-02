@@ -27,5 +27,5 @@ jobs:
         with:
           name: room-label-audit
           path: |
-          audit/room-label-positions.json
-          floorplan.png
+            audit/room-label-positions.json
+            floorplan.png
