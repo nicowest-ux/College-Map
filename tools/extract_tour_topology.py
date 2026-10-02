@@ -24,3 +24,10 @@ strings=re.findall(r'''["']([^"'\\]{3,90})["']''',data)
 interesting=sorted(set(s for s in strings if any(k.lower() in s.lower() for k in ['foyer','fyi','reception','quad','sports','frame','relish','cafe','theatre','hall','link','gym','deli','focus'])))
 print('interesting strings',len(interesting))
 for s in interesting[:150]:print('STR',s)
+
+labels=['The FYi','The Quad','Reception','Back foyer','Front foyer','The Link','Sports Hall','Relish','Cafe Six','The Frame']
+print('--- scene label contexts ---')
+for label in labels:
+    for m in list(re.finditer(re.escape(label),data,re.I))[:8]:
+        ctx=data[max(0,m.start()-500):m.start()+1200].replace('\n',' ')
+        print('CTX',label,m.start(),ctx)
