@@ -440,7 +440,7 @@ body.navigating #checkpointLayer .checkpoint-hit:not(.important){display:none!im
  B101:[280,1570],B102:[235,1545],B103:[195,1570],B104:[175,1570],B105:[125,1570],B106:[240,1650],B107:[240,1715],B108:[125,1650],B109:[240,1780],B110:[125,1740],B111:[195,1665],B113:[240,1840],
  H001:[70,1225],H003:[90,1350],H004:[170,1260],H005:[170,1330],H006:[170,1390],H007:[170,1430],H008:[205,1270],H101:[320,1130],H102:[320,1190],H105:[240,1110],H107:[240,1035],H108:[305,1030],H113:[170,1090],
  W001:[740,1600],W002:[880,1570],W003:[910,1570],W006:[600,1695],W007:[690,1690],
- W105:[575,1830],W108:[600,1940],W109:[660,1850],W110:[660,1950],W111:[590,1990],W113:[470,1860],W114:[470,1940],W115:[380,1860],W116:[380,1940],W120:[280,1860],
+ W101:[575,1792],W105:[575,1830],W108:[600,1940],W109:[660,1850],W110:[660,1950],W111:[590,1990],W113:[470,1860],W114:[470,1940],W115:[380,1860],W116:[380,1940],W120:[280,1860],
  W204:[420,2070],W205:[420,2160],W207:[330,2120],W208:[330,2050],W209:[360,2120],W210:[330,2190],W211:[220,2035],W212:[250,2130],W213:[170,2130],W214:[170,2035],W215:[100,2035],W216:[100,2130],
  S001:[920,2120],S002:[805,2085],S003:[1000,2050],S004:[900,2050],S010:[780,2100],S015:[1040,2190],S016:[780,2170],S017:[980,2190],S101:[1080,1950],S102:[980,1950]
 };
@@ -569,12 +569,14 @@ if(annotatedSource){
  for(const [key,g] of Object.entries(annotatedSource.floors||{})){
   const [bldg,floor]=key.split('|');
   (g.p||[]).forEach((pos,i)=>annotatedCheckpoints.push({id:'ANN_'+key.replace(/[^A-Za-z0-9]+/g,'_')+'_'+i,name:'Surveyed corridor',type:'corridor',bldg,floor,pos,verified:true,source:'annotated-corridor'}));
-  (g.e||[]).forEach(([a,b])=>annotatedEdges.push({from:'ANN_'+key.replace(/[^A-Za-z0-9]+/g,'_')+'_'+a,to:'ANN_'+key.replace(/[^A-Za-z0-9]+/g,'_')+'_'+b,mode:'corridor',access:'public',stepFree:null,source:'annotated-corridor'}));
+  (g.e||[]).forEach(([a,b])=>annotatedEdges.push({from:'ANN_'+key.replace(/[^A-Za-z0-9]+/g,'_')+'_'+a,to:'ANN_'+key.replace(/[^A-Za-z0-9]+/g,'_')+'_'+b,mode:'corridor',access:'public',stepFree:true,source:'annotated-corridor'}));
  }
  for(const t of annotatedSource.toilets||[]){const [id,y,x,bldg,floor]=t;annotatedCheckpoints.push({id,name:'Toilets',type:'toilet',bldg,floor,pos:[y,x],verified:true,source:'user-highlighted-toilet',keywords:['toilet','toilets','wc','loo']})}
  for(const l of annotatedSource.landmarks||[]){const [id,name,y,x,bldg,floor]=l;annotatedCheckpoints.push({id:'LANDMARK_'+id,name,type:'landmark',bldg,floor,pos:[y,x],verified:true,source:'user-labelled-landmark',keywords:[name.toLowerCase()]})}
 }
 const checkpoints=[...annotatedCheckpoints,
+ {id:'WYRE_LIFT_G',name:'Wyre lift — Ground Floor',type:'lift',bldg:'Wyre',floor:'G',pos:[874,1610],verified:true,source:'floorplan-lift-symbol',keywords:['wyre lift','lift','elevator','w002','w003']},
+ {id:'WYRE_LIFT_1',name:'Wyre lift — First Floor',type:'lift',bldg:'Wyre',floor:'1',pos:[530,1861],verified:true,source:'floorplan-lift-symbol',keywords:['wyre lift','lift','elevator','w105','w11ss']},
  {id:'B007_DOOR',name:'Tech Support doorway',type:'room',room:'B007',bldg:'Brock',floor:'G',pos:[558,1397],verified:true,keywords:['tech support','b007','it support']},
  {id:'B014_DOOR',name:'Exams doorway',type:'room',room:'B014',bldg:'Brock',floor:'G',pos:[562,1526],verified:true,keywords:['exams','b014','exam office']},
  {id:'BROCK_QUAD_EXIT_TECH',name:'Doors from Tech Support to the quad',type:'entrance',bldg:'Brock',floor:'G',pos:null,verified:false,keywords:['quad doors','tech doors','outside']},
@@ -613,7 +615,17 @@ const routeTemplates={
    ]
  }
 };
-const edges=[...annotatedEdges];
+const verticalEdges=[
+ // Brock/Wyre east stair core: Ground -> Wyre First Floor.
+ // These nodes sit immediately beside the stair landings shown on the college floorplan.
+ {from:'ANN_Brock_G_21',to:'ANN_Brock_G_23',mode:'corridor',access:'public',stepFree:null,source:'floorplan-connector',instruction:'Continue to the stairwell beside W006.'},
+ {from:'ANN_Brock_G_23',to:'ANN_Wyre_1_0',mode:'stairs',access:'public',stepFree:false,source:'floorplan-stair-core',instruction:'Take the stairs to the First Floor.',reverseInstruction:'Take the stairs down to the Ground Floor.'},
+ {from:'ANN_Wyre_1_1',to:'ANN_Wyre_1_4',mode:'corridor',access:'public',stepFree:null,source:'floorplan-connector',instruction:'Leave the stair landing and join the Wyre First Floor corridor.',reverseInstruction:'Continue to the stair landing.'}
+ {from:'ANN_Wyre_G_5',to:'WYRE_LIFT_G',mode:'corridor',access:'public',stepFree:true,source:'floorplan-connector',instruction:'Continue through FYi to the lift beside W002 / W003.',reverseInstruction:'Leave the lift and continue through FYi toward Brock.'},
+ {from:'WYRE_LIFT_G',to:'WYRE_LIFT_1',mode:'lift',access:'public',stepFree:true,source:'floorplan-lift-core',instruction:'Take the lift to the First Floor.',reverseInstruction:'Take the lift down to the Ground Floor.'},
+ {from:'WYRE_LIFT_1',to:'ANN_Wyre_1_15',mode:'corridor',access:'public',stepFree:true,source:'floorplan-connector',instruction:'Leave the lift and join the Wyre First Floor corridor.',reverseInstruction:'Continue to the Wyre lift.'}
+];
+const edges=[...annotatedEdges,...verticalEdges];
 const restrictions=[
  {from:'B007',to:'B014',type:'staff-only',description:'The direct internal corridor between the Tech Support and Exams side is staff-only for students.'}
 ];
@@ -983,7 +995,7 @@ function generatedConnectorEdges(){
   if(!c.pos||c.type==='corridor')continue;let best=null,bd=Infinity;
   for(const n of corr){if(n.bldg!==c.bldg||n.floor!==c.floor)continue;const d=Math.hypot(n.pos[0]-c.pos[0],n.pos[1]-c.pos[1]);if(d<bd){bd=d;best=n}}
   const limit=c.type==='room-section'?150:115;
-  if(best&&bd<=limit)out.push({from:c.id,to:best.id,mode:c.type==='room'?'doorway':'corridor',access:'public',stepFree:null,source:c.type==='room-section'?'room-section-snap':'auto-snap-to-annotated-corridor',meters:null})
+  if(best&&bd<=limit)out.push({from:c.id,to:best.id,mode:c.type==='room'?'doorway':'corridor',access:'public',stepFree:true,source:c.type==='room-section'?'room-section-snap':'auto-snap-to-annotated-corridor',meters:null})
  }
  return out
 }
@@ -995,16 +1007,21 @@ function graphStitchEdges(){
    const a=ends[i],b=ends[j];if(a.floor!==b.floor)continue;
    const d=Math.hypot(a.pos[0]-b.pos[0],a.pos[1]-b.pos[1]);
    if(d>28)continue;const key=[a.id,b.id].sort().join('|');if(seen.has(key))continue;seen.add(key);
-   out.push({from:a.id,to:b.id,mode:'corridor',access:'public',stepFree:null,source:'annotated-component-stitch',weight:Math.max(1,d)})
+   out.push({from:a.id,to:b.id,mode:'corridor',access:'public',stepFree:true,source:'annotated-component-stitch',weight:Math.max(1,d)})
  }
  return out
 }
 function allEdges(){return [...(D.edges||[]),...(state.survey.edges||[]),...generatedConnectorEdges(),...graphStitchEdges()]}
+function routeLabelForRoom(r){
+ if(!r)return '';
+ const p=(D.places||[]).find(x=>x.room===r.id);
+ return p?(p.name+' ('+r.id+')'):r.id
+}
 function currentStartRef(){
  const cp=state.position?.checkpointId?checkpointBy(state.position.checkpointId):null;
- if(cp)return {kind:'checkpoint',checkpoint:cp,label:cp.name,room:cp.room?roomBy(cp.room):null};
+ if(cp){const rr=cp.room?roomBy(cp.room):null;return {kind:'checkpoint',checkpoint:cp,label:rr?routeLabelForRoom(rr):cp.name,room:rr}}
  const r=state.start||((state.position?.roomId&&roomBy(state.position.roomId))||null);
- if(r)return {kind:'room',room:r,label:r.id};
+ if(r)return {kind:'room',room:r,label:routeLabelForRoom(r)};
  return null
 }
 function startIdsForGraph(ref,cps){
@@ -1146,7 +1163,7 @@ function focusCurrentLeg(){
 function currentRouteStep(){return state.route?.steps?.[state.routeIndex]||null}
 function renderRoute(){
  const r=state.route;if(!r)return;const step=currentRouteStep();if(!step)return;const pct=((state.routeIndex+1)/r.steps.length)*100,q=routeQuality(r),confidence=Core.routeConfidence(r,state.confidence);
- $('routeEyebrow').textContent=q.label.toUpperCase();$('routeTitle').textContent=(r.fromLabel||'Start')+' → '+r.targetLabel;$('routeStatus').textContent='Step '+(state.routeIndex+1)+' of '+r.steps.length+' · '+q.label;
+ $('routeEyebrow').textContent=q.label.toUpperCase();const shownTarget=r.place?.name||state.destinationPlace?.name||r.targetLabel;$('routeTitle').textContent=(r.fromLabel||'Start')+' → '+shownTarget;$('routeStatus').textContent='Step '+(state.routeIndex+1)+' of '+r.steps.length+' · '+q.label;
  $('routeTrust').dataset.level=q.level;$('routeTrust').innerHTML='<b>'+q.label+'</b><span>'+q.detail+(r.note?' '+r.note:'')+'</span>';
  $('nextInstruction').innerHTML='<span class="instruction-icon">'+(step.icon||'↑')+'</span><span>'+step.text+'</span>';
  const next=r.steps[state.routeIndex+1];$('routeNextPreview').hidden=!next;$('routeNextPreview').textContent=next?'Next: '+next.text:'';
