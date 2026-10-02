@@ -1275,13 +1275,14 @@ document.querySelectorAll('.bottom button').forEach(b=>b.onclick=()=>{document.q
 window.addEventListener('online',()=>$('offline').hidden=true);window.addEventListener('offline',()=>$('offline').hidden=false);$('offline').hidden=navigator.onLine;
 if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
 renderHome();renderRooms();renderCheckpoints();renderPosition();renderStudio();renderSuggestions();$('stepFreeToggle').checked=state.stepFree;$('voiceToggle').checked=state.voice;$('profileSelect').value=state.profile;$('hapticToggle').checked=state.haptics;$('autoZoomToggle').checked=state.autoZoom;$('strideInput').value=state.strideM.toFixed(2);renderResumeRoute();
-const url=new URL(location.href),action=url.searchParams.get('action'),cpId=url.searchParams.get('cp'),fromId=url.searchParams.get('from'),toId=url.searchParams.get('to'),placeId=url.searchParams.get('place');
+const url=new URL(location.href),action=url.searchParams.get('action'),cpId=url.searchParams.get('cp'),fromId=url.searchParams.get('from'),toId=url.searchParams.get('to'),placeId=url.searchParams.get('place'),guideNow=url.searchParams.get('guide')==='1';
 setTimeout(()=>{
  if(img.complete)fitAll();
  if(cpId){const cp=checkpointBy(cpId);if(cp){anchorAt(cp);if(toId&&roomBy(toId))routeTo(roomBy(toId));else showAssistant('I am by '+cp.name)}}
  else if(fromId&&roomBy(fromId)){const r=roomBy(fromId);state.start=r;const p=posFor(r),cp=allCheckpoints().find(c=>c.room===r.id&&c.pos);if(p)setPosition(p,'deep-link start: '+r.id,r.id,cp?.id||null,100)}
  if(toId&&roomBy(toId)&&!cpId){state.destination=roomBy(toId);openRoutePlanner(state.destination)}
  if(placeId&&placeBy(placeId)){routeToPlace(placeBy(placeId))}
+ if(guideNow&&state.routeDraft&&!state.routeDraft.blocked){beginRoute(state.routeDraft)}
  if(action==='search')openSearch('browse');if(action==='assistant')showAssistant();if(action==='tour')openTourPicker()
 },80);
 window.__CN_BOOTED=true;
