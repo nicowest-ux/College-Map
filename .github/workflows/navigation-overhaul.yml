@@ -54,7 +54,9 @@ jobs:
           if [ -z "$CHROME" ]; then echo "Chrome unavailable on runner"; exit 1; fi
           "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom "http://127.0.0.1:8000/?from=B007&to=B014" > /tmp/route-dom.html
           grep -q 'id="plannerSheet"' /tmp/route-dom.html
-          grep -q 'Landmark guided' /tmp/route-dom.html
+          grep -Eq 'Surveyed turn-by-turn|Landmark guided' /tmp/route-dom.html
+          grep -q 'WC_BROCK_G_A' /tmp/route-dom.html
+          grep -q 'corridor-seed' /tmp/route-dom.html
           grep -q 'B007' /tmp/route-dom.html
           grep -q 'B014' /tmp/route-dom.html
           ! grep -q 'Campus Navigator could not start' /tmp/route-dom.html
