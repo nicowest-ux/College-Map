@@ -56,5 +56,92 @@ const specialRoutes={
   'Continue to B007 Tech Support.'
  ]
 };
-window.CAMPUS_V5={image:{width:2560,height:1527,src:'floorplan.png'},floorViews,rooms,specialRoutes,departments:dep};
+const tourUrl='https://storage.net-fs.com/hosting/8161072/19/';
+const places=[
+ {id:'EXAMS',name:'Exams Office',kind:'Service',room:'B014',icon:'✓',keywords:['exam','exams','exam office','exam room','assessment','results'],description:'Exams and assessment support.'},
+ {id:'TECH',name:'Tech Support',kind:'Service',room:'B007',icon:'⌘',keywords:['it','tech','technical','computer problem','laptop','wifi','password','technology'],description:'IT and device support.'},
+ {id:'FYI',name:'FYi Library & Study Zone',kind:'Study',room:null,icon:'▤',keywords:['library','fyi','study','quiet','revision','book','learning resource','printer','computer'],description:'Library and learning resource centre with silent study, computers, printers and own-device study space.'},
+ {id:'FRAME',name:'The Frame',kind:'Creative',room:null,icon:'◇',keywords:['frame','art','visual art','gallery','graphics','photography','textiles'],description:'Open-plan visual arts and exhibition space.'},
+ {id:'THEATRE',name:'Theatre',kind:'Performing Arts',room:null,icon:'◈',keywords:['theatre','theater','performance','show','drama'],description:'Professional performance venue.'},
+ {id:'SPORTS',name:'Sports Hall',kind:'Sport',room:'S001',icon:'◉',keywords:['sports hall','sport','pe','basketball','badminton','climbing'],description:'Sports hall and activity space.'},
+ {id:'GYM',name:'Gymnasium',kind:'Sport',room:null,icon:'↗',keywords:['gym','gymnasium','fitness','weights'],description:'On-site gymnasium.'},
+ {id:'FOCUS',name:'Focus Centre',kind:'Support',room:null,icon:'♥',keywords:['focus','additional learning support','als','support','learning support','sensory','quiet support'],description:'Additional Learning Support base and staffed support zone.'},
+ {id:'FOOD',name:'Food & Drink',kind:'Food',room:null,icon:'☕',keywords:['food','drink','lunch','coffee','costa','cafe','cafe 6','relish','deli','store','hungry'],description:'Campus catering including Relish, Cafe 6, Costa, Deli Counter, Cafe+ and The Store.'},
+ {id:'SCIENCE',name:'Science Labs',kind:'Learning',room:null,icon:'⌬',keywords:['science','lab','laboratory','chemistry','biology','physics'],description:'Science teaching laboratories.'},
+ {id:'DIGITAL',name:'Digital Lab',kind:'Learning',room:null,icon:'◫',keywords:['digital lab','digital','computing','media','film','tv','green room'],description:'Digital, film and TV facilities.'},
+ {id:'FAITH',name:'Faith & Sensory Space',kind:'Wellbeing',room:null,icon:'○',keywords:['faith','prayer','sensory','quiet space','wellbeing'],description:'Faith and sensory space.'},
+ {id:'RECEPTION',name:'Reception / Main Entrance',kind:'Service',room:null,icon:'⌂',keywords:['reception','entrance','main entrance','visitor','sign in'],description:'Main campus arrival and visitor sign-in point.'},
+ {id:'CAREERS',name:'Futures Careers & Guidance',kind:'Support',room:null,icon:'↗',keywords:['careers','career','futures','university','apprenticeship','job','guidance'],description:'Careers and guidance team based at the back of the FYi computer area.'},
+ {id:'TOILETS',name:'Toilets',kind:'Facilities',room:null,icon:'WC',keywords:['toilet','toilets','loo','bathroom','wc'],description:'Find the nearest toilet using the visual campus guide while exact amenity pins are being verified.'},
+ {id:'LIFT',name:'Lift / Step-free access',kind:'Accessibility',room:null,icon:'↕',keywords:['lift','elevator','wheelchair','step free','step-free','accessible'],description:'The campus states wheelchair access throughout; exact lift-to-lift route geometry is being verified.'},
+ {id:'WATER',name:'Water refill',kind:'Facilities',room:null,icon:'◌',keywords:['water','refill','bottle','fountain'],description:'Water fountains are available around the college; exact refill pins are being verified.'}
+];
+const intentGroups=[
+ {id:'it-help',label:'I need IT help',keywords:['it help','computer problem','laptop problem','wifi','password','technical support'],place:'TECH'},
+ {id:'exam-help',label:'I have an exam',keywords:['exam','exams','assessment'],place:'EXAMS'},
+ {id:'study',label:'I need somewhere to study',keywords:['study','quiet','revision','library'],place:'FYI'},
+ {id:'food',label:'I want food or a drink',keywords:['food','drink','lunch','coffee','hungry'],place:'FOOD'},
+ {id:'support',label:'I need student support',keywords:['support','additional learning','als','sensory','help me'],place:'FOCUS'},
+ {id:'sport',label:'I need sport facilities',keywords:['sport','gym','fitness','sports hall'],place:'SPORTS'},
+ {id:'arts',label:'I need arts / performance',keywords:['art','theatre','drama','dance','frame'],place:'FRAME'},
+ {id:'toilet',label:'I need a toilet',keywords:['toilet','toilets','loo','bathroom','wc'],place:'TOILETS'},
+ {id:'access',label:'I need step-free access',keywords:['lift','elevator','wheelchair','step free','step-free','accessible'],place:'LIFT'},
+ {id:'careers',label:'I need careers help',keywords:['careers','career','university','apprenticeship','job','futures'],place:'CAREERS'}
+];
+
+const checkpoints=[
+ {id:'B007_DOOR',name:'Tech Support doorway',type:'room',room:'B007',bldg:'Brock',floor:'G',pos:[558,1397],verified:true,keywords:['tech support','b007','it support']},
+ {id:'B014_DOOR',name:'Exams doorway',type:'room',room:'B014',bldg:'Brock',floor:'G',pos:[562,1526],verified:true,keywords:['exams','b014','exam office']},
+ {id:'BROCK_QUAD_EXIT_TECH',name:'Doors from Tech Support to the quad',type:'entrance',bldg:'Brock',floor:'G',pos:null,verified:false,keywords:['quad doors','tech doors','outside']},
+ {id:'BROCK_QUAD_LEFT',name:'Left turn in the quad',type:'junction',bldg:'Brock',floor:'G',pos:null,verified:false,keywords:['quad','outside','left in quad']},
+ {id:'BROCK_LOCKER_DOORS',name:'Doors by the student lockers',type:'entrance',bldg:'Brock',floor:'G',pos:null,verified:false,keywords:['lockers','student lockers','locker doors']},
+ {id:'BROCK_LOCKERS',name:'Student lockers',type:'landmark',bldg:'Brock',floor:'G',pos:null,verified:false,keywords:['lockers','student lockers']},
+ {id:'BROCK_REFILL',name:'Refill / print room',type:'printer',bldg:'Brock',floor:'G',pos:null,verified:false,keywords:['refill','print room','printer','printing']},
+ {id:'BROCK_EXAMS_TURN',name:'Final turn to Exams',type:'junction',bldg:'Brock',floor:'G',pos:null,verified:false,keywords:['exams turn','final turn']}
+];
+const routeTemplates={
+ 'B007>B014':{
+   name:'Tech Support to Exams',audience:'student',precision:'landmark-verified',public:true,stepFree:null,
+   note:'Uses the public student route. The direct indoor corridor is staff-only.',
+   steps:[
+    {action:'exit',icon:'↗',text:'Leave Tech Support and go back out the way you entered.',anchor:'B007_DOOR',confirm:'You are leaving B007 Tech Support.'},
+    {action:'outside',icon:'↑',text:'Go outside into the quad.',anchor:'BROCK_QUAD_EXIT_TECH',confirm:'You should now be in the quad.'},
+    {action:'left',icon:'↰',text:'Turn left in the quad and continue to the next set of doors.',anchor:'BROCK_QUAD_LEFT',confirm:'Keep the building on your left as you cross.'},
+    {action:'enter',icon:'↗',text:'Go through the doors by the student lockers.',anchor:'BROCK_LOCKER_DOORS',confirm:'You should see student lockers immediately after entering.'},
+    {action:'straight',icon:'↑',text:'Walk past the student lockers.',anchor:'BROCK_LOCKERS',confirm:'The lockers should be beside you.'},
+    {action:'left',icon:'↰',text:'Turn left and go past Refill / the print room.',anchor:'BROCK_REFILL',confirm:'Look for Refill / the print room as your landmark.'},
+    {action:'left',icon:'↰',text:'Turn left again. Exams is B014.',anchor:'BROCK_EXAMS_TURN',confirm:'B014 should now be ahead.'},
+    {action:'arrive',icon:'✓',text:'Arrive at the Exams office, B014.',anchor:'B014_DOOR',confirm:'You have reached Exams.'}
+   ]
+ },
+ 'B014>B007':{
+   name:'Exams to Tech Support',audience:'student',precision:'landmark-verified',public:true,stepFree:null,
+   note:'Uses the public student route rather than the staff-only internal corridor.',
+   steps:[
+    {action:'exit',icon:'↗',text:'Leave Exams, B014, and turn right.',anchor:'B014_DOOR',confirm:'You are leaving the Exams office.'},
+    {action:'straight',icon:'↑',text:'Continue past Refill / the print room toward the student lockers.',anchor:'BROCK_REFILL',confirm:'You should pass Refill / the print room.'},
+    {action:'right',icon:'↱',text:'Turn right by the lockers and continue to the doors.',anchor:'BROCK_LOCKERS',confirm:'The student lockers should be beside you.'},
+    {action:'outside',icon:'↗',text:'Exit through the doors into the quad.',anchor:'BROCK_LOCKER_DOORS',confirm:'You should now be outside in the quad.'},
+    {action:'right',icon:'↱',text:'Turn right in the quad and head back toward Tech Support.',anchor:'BROCK_QUAD_LEFT',confirm:'Follow the outside route back toward Tech Support.'},
+    {action:'enter',icon:'↗',text:'Re-enter the building toward Tech Support.',anchor:'BROCK_QUAD_EXIT_TECH',confirm:'You should be back by the Tech Support entrance.'},
+    {action:'arrive',icon:'✓',text:'Arrive at B007 Tech Support.',anchor:'B007_DOOR',confirm:'You have reached Tech Support.'}
+   ]
+ }
+};
+const restrictions=[
+ {from:'B007',to:'B014',type:'staff-only',description:'The direct internal corridor between the Tech Support and Exams side is staff-only for students.'}
+];
+const surveyTypes=[
+ {id:'entrance',label:'Entrance / door',icon:'↗'},
+ {id:'junction',label:'Corridor junction',icon:'⌁'},
+ {id:'stairs',label:'Stairs',icon:'⇅'},
+ {id:'lift',label:'Lift',icon:'↕'},
+ {id:'toilet',label:'Toilet',icon:'WC'},
+ {id:'printer',label:'Printer / Refill',icon:'▣'},
+ {id:'water',label:'Water refill',icon:'◌'},
+ {id:'landmark',label:'Landmark',icon:'◉'}
+];
+
+window.CAMPUS_V6={image:{width:2560,height:1527,src:'floorplan.png',sourceDate:'September 2017'},floorViews,rooms,specialRoutes,routeTemplates,checkpoints,restrictions,surveyTypes,departments:dep,places,intentGroups,tourUrl};
+window.CAMPUS_V5=window.CAMPUS_V6;
 })();
