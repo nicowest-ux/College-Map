@@ -10,7 +10,7 @@ const state={
  tracking:false,heading:0,route:null,routeIndex:0,confidence:store.get('cn_confidence',100),scale:1,tx:0,ty:0,
  stepFree:store.get('cn_stepfree',false),voice:store.get('cn_voice',false),tourLoaded:false,
  profile:store.get('cn_profile','student'),lastConfirmed:store.get('cn_lastConfirmed',null),
- recent:store.get('cn_recent',[]),searchMode:'browse',pendingDestination:null,pendingCheckpoint:null,routeDraft:null,
+ recent:store.get('cn_recent',[]),searchMode:'browse',pendingDestination:null,pendingCheckpoint:null,pendingPlace:null,routeDraft:null,
  haptics:store.get('cn_haptics',true),autoZoom:store.get('cn_autozoom',true),stepsSinceAnchor:0,
  activeRoute:store.get('cn_active_route',null),draftIgnoreStepFree:false,
  tourLinks:store.get('cn_tour_links',{}),headingCal:store.get('cn_heading_cal',{}),strideM:store.get('cn_stride_m',0.72),
@@ -36,7 +36,7 @@ mapEl.addEventListener('pointermove',e=>{if(!pointers.has(e.pointerId))return;co
 function pointerEnd(e){const was=dragStart,p=pointers.get(e.pointerId);pointers.delete(e.pointerId);if(pointers.size===0){if(was&&!was.moved&&p){const now=Date.now();if(now-lastTap<300){const [y,x]=screenToMap(e.clientX,e.clientY);flyTo([y,x],Math.min(4,state.scale*1.55));}else handleMapTap(e.clientX,e.clientY);lastTap=now;}dragStart=null;}else if(pointers.size===1){const p=[...pointers.values()][0];dragStart={x:p.x,y:p.y,tx:state.tx,ty:state.ty,moved:true};}}
 mapEl.addEventListener('pointerup',pointerEnd);mapEl.addEventListener('pointercancel',pointerEnd);
 mapEl.addEventListener('wheel',e=>{e.preventDefault();const [y,x]=screenToMap(e.clientX,e.clientY);const ns=Math.max(.2,Math.min(4,state.scale*(e.deltaY<0?1.15:.87)));const r=mapEl.getBoundingClientRect();state.scale=ns;state.tx=e.clientX-r.left-x*ns;state.ty=e.clientY-r.top-y*ns;applyTransform();},{passive:false});
-function handleMapTap(cx,cy){const [y,x]=screenToMap(cx,cy);if(state.placing){state.cal[state.placing.id]={pos:[+y.toFixed(1),+x.toFixed(1)],verifiedAt:new Date().toISOString()};store.set('cn_calibration',state.cal);const id=state.placing.id;state.placing=null;mapEl.classList.remove('calibrating');renderRooms();renderStudio();toast(`${id} doorway verified`);return}if(state.placingAnchor){const a={...state.placingAnchor,pos:[+y.toFixed(1),+x.toFixed(1)],verified:true,createdAt:new Date().toISOString()};state.survey.checkpoints.push(a);state.placingAnchor=null;mapEl.classList.remove('calibrating');saveSurvey();renderCheckpoints();renderStudio();toast(`${a.name} anchor saved`);return}if(state.tapPosition){state.tapPosition=false;mapEl.classList.remove('calibrating');setPosition([y,x],'manual map pin',null,null,88);if(state.pendingCheckpoint)openCheckpointPlanner(state.pendingCheckpoint);else if(state.pendingDestination||state.destination)openRoutePlanner(state.pendingDestination||state.destination)}}
+function handleMapTap(cx,cy){const [y,x]=screenToMap(cx,cy);if(state.placing){state.cal[state.placing.id]={pos:[+y.toFixed(1),+x.toFixed(1)],verifiedAt:new Date().toISOString()};store.set('cn_calibration',state.cal);const id=state.placing.id;state.placing=null;mapEl.classList.remove('calibrating');renderRooms();renderStudio();toast(`${id} doorway verified`);return}if(state.placingAnchor){const a={...state.placingAnchor,pos:[+y.toFixed(1),+x.toFixed(1)],verified:true,createdAt:new Date().toISOString()};state.survey.checkpoints.push(a);state.placingAnchor=null;mapEl.classList.remove('calibrating');saveSurvey();renderCheckpoints();renderStudio();toast(`${a.name} anchor saved`);return}if(state.tapPosition){state.tapPosition=false;mapEl.classList.remove('calibrating');setPosition([y,x],'manual map pin',null,null,88);if(state.pendingPlace)routeToPlace(state.pendingPlace);else if(state.pendingCheckpoint)openCheckpointPlanner(state.pendingCheckpoint);else if(state.pendingDestination||state.destination)openRoutePlanner(state.pendingDestination||state.destination)}}
 img.addEventListener('load',()=>{fitAll();setTimeout(updateAccuracy,0)});window.addEventListener('resize',()=>{if(!state.selected&&!state.route)fitAll()});
 
 /* ---------- campus entities ---------- */
@@ -144,41 +144,77 @@ function closeSheets(hideBackdrop=true){document.querySelectorAll('.sheet').forE
 $('backdrop').onclick=()=>closeSheets();document.querySelectorAll('.close').forEach(b=>b.onclick=()=>closeSheets());
 
 /* ---------- destination detail ---------- */
-function placeCheckpoint(place){return allCheckpoints().find(c=>c.place===place.id)||null}
+function directPlaceCheckpoint(place){
+ const ids={FYI:'LANDMARK_FYI',FRAME:'LANDMARK_FRAME',THEATRE:'LANDMARK_THEATRE',FOCUS:'LANDMARK_FOCUS',RECEPTION:'LANDMARK_ENTRANCE',CAREERS:'LANDMARK_FYI'};
+ const id=ids[place?.id];return id?checkpointBy(id):allCheckpoints().find(c=>c.place===place?.id)||null
+}
+function placeCheckpoint(place){return directPlaceCheckpoint(place)}
+function placeCandidates(place){
+ const cps=allCheckpoints();if(!place)return[];
+ if(place.id==='TOILETS')return cps.filter(c=>c.type==='toilet');
+ if(place.id==='LIFT')return cps.filter(c=>c.type==='lift');
+ if(place.id==='FOOD'){const ids=new Set(['LANDMARK_RELISH','LANDMARK_COSTA','LANDMARK_CAFE6','LANDMARK_STORE']);return cps.filter(c=>ids.has(c.id))}
+ const direct=directPlaceCheckpoint(place);return direct?[direct]:[]
+}
+function bestReachableCheckpoint(candidates){
+ if(!candidates.length)return null;const ref=currentStartRef();if(!ref)return candidates[0];
+ const cps=allCheckpoints(),startIds=startIdsForGraph(ref,cps);let best=null,bestCost=Infinity;
+ for(const cp of candidates){const path=Core.shortestPath({checkpoints:cps,edges:allEdges(),startIds,endIds:[cp.id],options:{profile:state.profile,stepFree:state.stepFree}});if(path&&path.cost<bestCost){bestCost=path.cost;best=cp}}
+ if(best)return best;
+ const p=state.position?.pos||roomGuidePos(ref.room);if(p)return [...candidates].sort((a,b)=>Core.distance(p,a.pos)-Core.distance(p,b.pos))[0];
+ return candidates[0]
+}
+function placeFinalText(place,cp){
+ if(place.id==='CAREERS')return 'Arrive at Futures Careers & Guidance at the back of the FYi computer area.';
+ if(place.id==='TOILETS')return 'Arrive at the toilets.';
+ if(place.id==='FOOD')return 'Arrive at '+cp.name+', one of the campus food and drink locations.';
+ if(place.id==='RECEPTION')return 'Arrive at Reception / Main Entrance.';
+ return 'Arrive at '+place.name+'.'
+}
+function computePlaceRoute(place,cp,options={}){
+ const ignoreStepFree=!!options.ignoreStepFree,ref=currentStartRef();
+ if(!ref)return {a:null,b:null,fromLabel:'Starting point needed',targetLabel:place.name,steps:[],precision:'none',note:'Tell me where you are first and I’ll calculate the full corridor route.',blocked:true,blockedReason:'start',targetCheckpoint:cp,place};
+ if(!cp)return {a:ref.room||null,b:null,fromLabel:ref.label,targetLabel:place.name,steps:[],precision:'none',note:'This destination does not yet have a route anchor. I will not substitute “follow signs” for missing navigation data.',blocked:true,blockedReason:'coverage',place};
+ const graph=buildGraphRoute(ref,[cp.id],place.id==='FOOD'?(place.name+' — '+cp.name):place.name,null,ignoreStepFree,{targetCheckpoint:cp,place,finalText:placeFinalText(place,cp)});
+ if(graph){graph.place=place;graph.targetCheckpoint=cp;return graph}
+ return {a:ref.room||null,b:null,fromLabel:ref.label,targetLabel:place.name,steps:[],precision:'none',note:'I cannot yet connect your position to '+place.name+' through the mapped corridor network. Re-anchor to a room or landmark and I’ll recalculate.',blocked:true,blockedReason:state.stepFree&&!ignoreStepFree?'stepfree':'coverage',targetCheckpoint:cp,place}
+}
 function selectEntity(sel){
- state.selected=sel;renderRooms();renderCheckpoints();const r=targetRoom(sel),cp=sel.type==='place'?placeCheckpoint(sel.value):null;if(r)focusRoom(r);else if(cp?.pos)flyTo(cp.pos,2.3);
+ state.selected=sel;renderRooms();renderCheckpoints();const r=targetRoom(sel),cp=sel.type==='place'?bestReachableCheckpoint(placeCandidates(sel.value)):null;if(r)focusRoom(r);else if(cp?.pos)flyTo(cp.pos,2.3);
  const isRoom=sel.type==='room',v=sel.value;
  $('roomKind').textContent=isRoom?'ROOM':'DESTINATION';$('roomName').textContent=isRoom?v.id:v.name;
  if(isRoom){
    $('roomMeta').textContent=v.bldg+' · '+floorLabel(v.floor)+((v.aliases||[])[0]?' · '+v.aliases[0]:'');
    $('destinationDescription').textContent='';
-   $('roomAccuracy').textContent=verified(v)?'✓ Precise room-door pin verified':'Building and floor are known. The exact doorway is not yet survey-verified.';
-   $('roomAccuracy').className='room-accuracy '+(verified(v)?'good':'warn');$('calibrateRoom').hidden=false;$('setHere').hidden=false;$('setHere').textContent='I’m at this room';
+   $('roomAccuracy').textContent=verified(v)?'✓ Precise room-door pin verified':'✓ Interactive corridor guidance available to this room section; exact doorway pin is still being surveyed.';
+   $('roomAccuracy').className='room-accuracy '+(verified(v)?'good':'warn');$('calibrateRoom').hidden=false;$('setHere').hidden=!verified(v);$('setHere').textContent='I’m at this room';
  } else {
-   const linked=r?'Linked to '+r.id+' · '+r.bldg+' · '+floorLabel(r.floor):cp?'Linked to surveyed '+cp.type+' · '+(cp.bldg||'Campus'):'Chosen campus destination; exact navigation anchor still being surveyed.';
+   const linked=r?'Linked to '+r.id+' · '+r.bldg+' · '+floorLabel(r.floor):cp?'Route anchor: '+cp.name+' · '+(cp.bldg||'Campus'):'Destination route anchor still being mapped.';
    $('roomMeta').textContent=v.kind+' · '+linked;$('destinationDescription').textContent=v.description||'';
-   $('roomAccuracy').textContent=(r&&verified(r))||cp?.verified?'✓ Destination has a precise navigation anchor':'You can choose this as your destination now. Guidance will clearly show when the final indoor anchor is not yet surveyed.';
-   $('roomAccuracy').className='room-accuracy '+(((r&&verified(r))||cp?.verified)?'good':'warn');$('calibrateRoom').hidden=true;
+   $('roomAccuracy').textContent=(r||cp)?'✓ Can be used as a navigation destination':'This destination still needs a route anchor before turn-by-turn guidance can be trusted.';
+   $('roomAccuracy').className='room-accuracy '+((r||cp)?'good':'warn');$('calibrateRoom').hidden=true;
    $('setHere').hidden=!(r&&verified(r))&&!cp?.verified;$('setHere').textContent='I’m at this place';
  }
  const key=entityKey(sel),scene=tourSceneForSelection(sel);$('saveRoom').textContent=state.saved.has(key)?'★ Saved':'☆ Save';
  $('goHere').textContent='Take me there';$('goHere').classList.add('primary');$('lookAround').hidden=!scene;$('lookAround').textContent=scene?(scene.exact?'View this place in 360°':'360° nearby'):'360° unavailable';openSheet('roomSheet')
 }
 $('setHere').onclick=()=>{
- const r=targetRoom(state.selected),cp=state.selected?.type==='place'?placeCheckpoint(state.selected.value):null;
+ const r=targetRoom(state.selected),cp=state.selected?.type==='place'?bestReachableCheckpoint(placeCandidates(state.selected.value)):null;
  if(cp?.pos){anchorAt(cp);closeSheets();return}
- if(!r){toast('This destination does not have a precise start anchor yet');return}
- const p=posFor(r);state.start=r;if(p){const rcp=allCheckpoints().find(c=>c.room===r.id&&c.pos);setPosition(p,'verified room',r.id,rcp?.id||null,100);closeSheets()}else toast('This room needs an exact pin before it can be a precise start')
+ if(!r||!verified(r)){toast('Use a confirmed room or landmark to set a precise starting position');return}
+ const p=posFor(r);state.start=r;if(p){const rcp=allCheckpoints().find(c=>c.room===r.id&&c.source==='room-door');setPosition(p,'verified room',r.id,rcp?.id||null,100);closeSheets()}
 };
+function openPlacePlanner(place,cp,options={}){
+ state.pendingPlace=place;state.pendingCheckpoint=cp;state.pendingDestination=null;state.destinationPlace=place;
+ state.draftIgnoreStepFree=!!options.ignoreStepFree;state.routeDraft=computePlaceRoute(place,cp,{ignoreStepFree:state.draftIgnoreStepFree});renderPlanner();openSheet('plannerSheet')
+}
 function routeToPlace(place){
- const r=place.room?roomBy(place.room):null,cp=placeCheckpoint(place);
- if(r){state.destinationPlace=place;routeTo(r);return}
- if(cp){state.destinationPlace=place;routeToCheckpoint(cp);return}
- state.destinationPlace=place;state.pendingCheckpoint=null;state.pendingDestination=null;
- const ref=currentStartRef();
- const tourScene=tourSceneForSelection({type:'place',value:place});
- state.routeDraft={a:ref?.room||null,b:null,fromLabel:ref?.label||'Starting point not needed yet',targetLabel:place.name,steps:[],precision:'none',note:'You have selected '+place.name+' as your destination, but its exact indoor anchor has not yet been surveyed.'+(tourScene?' A linked 360° scene is available for visual orientation.':''),blocked:true,blockedReason:'coverage',place,tourScene};
- renderPlanner();openSheet('plannerSheet')
+ const r=place.room?roomBy(place.room):null;
+ if(r){state.destinationPlace=place;state.pendingPlace=place;routeTo(r);return}
+ if(place.id==='SCIENCE'){const sr=roomBy('M011')||roomBy('M009');if(sr){state.destinationPlace=place;state.pendingPlace=place;routeTo(sr);return}}
+ if(place.id==='SPORTS'){const sr=roomBy('S001');if(sr){state.destinationPlace=place;state.pendingPlace=place;routeTo(sr);return}}
+ const candidates=placeCandidates(place),cp=bestReachableCheckpoint(candidates);
+ openPlacePlanner(place,cp)
 }
 $('goHere').onclick=()=>{if(!state.selected)return;if(state.selected.type==='room')routeTo(state.selected.value);else routeToPlace(state.selected.value)};
 $('lookAround').onclick=()=>{const scene=tourSceneForSelection(state.selected);if(scene)openTour(scene,labelFor(state.selected));else toast('No exact 360° scene is linked to this location yet')};
@@ -200,6 +236,7 @@ function selectSearchResult(sel){
    else {state.position={pos:null,source:'room start: '+r.id,roomId:r.id,checkpointId:null,at:Date.now()};store.set('cn_position',state.position);renderPosition()}
    state.searchMode='browse';closeSheets();
    if(mode==='reanchor'&&state.route){rerouteFromCurrent();return}
+   if(state.pendingPlace){routeToPlace(state.pendingPlace);return}
    if(state.pendingCheckpoint){openCheckpointPlanner(state.pendingCheckpoint);return}
    if(state.pendingDestination||state.destination){openRoutePlanner(state.pendingDestination||state.destination);return}
    selectEntity({type:'room',value:r});return;
@@ -274,7 +311,7 @@ function anchorAt(c){
  if(state.route)handleRouteAnchor(c);
  renderCameraGuide();toast('Confirmed: '+c.name)
 }
-function openLandmarks(){const cps=allCheckpoints();let list=cps;if(state.route){const ids=new Set(state.route.steps.map(s=>s.anchor).filter(Boolean));list=[...cps.filter(c=>ids.has(c.id)),...cps.filter(c=>!ids.has(c.id))]}else if(state.start)list=cps.filter(c=>!c.bldg||c.bldg===state.start.bldg);$('landmarkResults').innerHTML=list.slice(0,36).map(c=>'<button class="result" data-cp="'+c.id+'"><span class="result-icon">'+checkpointIcon(c.type)+'</span><span class="result-copy"><b>'+c.name+'</b><small>'+(c.bldg||'Campus')+(c.floor?' · '+floorLabel(c.floor):'')+(c.pos?' · precise anchor':' · landmark')+'</small></span><em>'+(c.verified?'Precise':'Guide')+'</em></button>').join('')||'<p class="empty">No landmarks surveyed yet.</p>';$('landmarkResults').querySelectorAll('[data-cp]').forEach(b=>b.onclick=()=>{const c=checkpointBy(b.dataset.cp);if(c){anchorAt(c);closeSheets();if(!state.route){if(state.pendingCheckpoint)openCheckpointPlanner(state.pendingCheckpoint);else if(state.pendingDestination||state.destination)openRoutePlanner(state.pendingDestination||state.destination)}}});openSheet('landmarkSheet')}
+function openLandmarks(){const cps=allCheckpoints();let list=cps;if(state.route){const ids=new Set(state.route.steps.map(s=>s.anchor).filter(Boolean));list=[...cps.filter(c=>ids.has(c.id)),...cps.filter(c=>!ids.has(c.id))]}else if(state.start)list=cps.filter(c=>!c.bldg||c.bldg===state.start.bldg);$('landmarkResults').innerHTML=list.slice(0,36).map(c=>'<button class="result" data-cp="'+c.id+'"><span class="result-icon">'+checkpointIcon(c.type)+'</span><span class="result-copy"><b>'+c.name+'</b><small>'+(c.bldg||'Campus')+(c.floor?' · '+floorLabel(c.floor):'')+(c.pos?' · precise anchor':' · landmark')+'</small></span><em>'+(c.verified?'Precise':'Guide')+'</em></button>').join('')||'<p class="empty">No landmarks surveyed yet.</p>';$('landmarkResults').querySelectorAll('[data-cp]').forEach(b=>b.onclick=()=>{const c=checkpointBy(b.dataset.cp);if(c){anchorAt(c);closeSheets();if(!state.route){if(state.pendingPlace)routeToPlace(state.pendingPlace);else if(state.pendingCheckpoint)openCheckpointPlanner(state.pendingCheckpoint);else if(state.pendingDestination||state.destination)openRoutePlanner(state.pendingDestination||state.destination)}}});openSheet('landmarkSheet')}
 $('landmarkTour').onclick=openRouteVisual;
 
 /* ---------- camera guide ---------- */
@@ -485,7 +522,7 @@ $('plannerChangeStart').onclick=()=>{closeSheets();openSearch('start')};
 $('plannerChangeDest').onclick=()=>{closeSheets();openSearch('destination')};
 $('plannerSwap').onclick=()=>{const r=state.routeDraft;if(!r?.a||!r?.b)return;const old=r.a;state.start=r.b;const p=posFor(r.b),cp=allCheckpoints().find(c=>c.room===r.b.id&&c.pos);if(p)setPosition(p,'room start: '+r.b.id,r.b.id,cp?.id||null,100);else{state.position={pos:null,source:'room start: '+r.b.id,roomId:r.b.id,checkpointId:null,at:Date.now()};store.set('cn_position',state.position);renderPosition()}state.destination=old;openRoutePlanner(old)};
 $('plannerBegin').onclick=()=>{if(state.routeDraft?.blockedReason==='start'){openPosition();return}beginRoute(state.routeDraft)};$('plannerVisual').onclick=()=>{const s=state.routeDraft?.tourScene;if(s)openTour(s,state.routeDraft?.targetLabel);else openTourPicker()};
-$('plannerGeneral').onclick=()=>{if(state.pendingCheckpoint)openCheckpointPlanner(state.pendingCheckpoint,{ignoreStepFree:true});else if(state.destination)openRoutePlanner(state.destination,{ignoreStepFree:true})};
+$('plannerGeneral').onclick=()=>{if(state.pendingPlace)openPlacePlanner(state.pendingPlace,bestReachableCheckpoint(placeCandidates(state.pendingPlace)),{ignoreStepFree:true});else if(state.pendingCheckpoint)openCheckpointPlanner(state.pendingCheckpoint,{ignoreStepFree:true});else if(state.destination)openRoutePlanner(state.destination,{ignoreStepFree:true})};
 $('nextStep').onclick=nextRouteStep;$('prevStep').onclick=()=>{if(state.route&&state.routeIndex>0){state.routeIndex--;renderRoute();focusCurrentLeg()}};
 $('speakStep').onclick=speak;$('endRoute').onclick=endRoute;$('visualCheck').onclick=openRouteVisual;$('recalibrate').onclick=openPosition;$('guideLensClose').onclick=()=>$('guideLens').hidden=true;$('tourBackToGuide').onclick=()=>{closeTour();$('routeCard').hidden=false};
 $('confirmLandmark').onclick=()=>{const s=currentRouteStep();if(!s)return;const cp=checkpointBy(s.anchor);if(cp)anchorAt(cp);else nextRouteStep()};
@@ -542,7 +579,7 @@ $('askAnything').onclick=()=>showAssistant();$('welcomeClose').onclick=()=>$('we
 function renderSaved(){const arr=[...state.saved];$('savedResults').innerHTML=arr.map(key=>{const [kind,id]=key.split(':');const sel=kind==='room'?{type:'room',value:roomBy(id)}:{type:'place',value:placeBy(id)};return sel.value?resultMarkup(sel):''}).join('')||'<p class="empty">Nothing saved yet.</p>';bindResults($('savedResults'))}
 $('menuBtn').onclick=()=>{openSheet('settingsSheet');$('stepFreeToggle').checked=state.stepFree;$('voiceToggle').checked=state.voice;$('profileSelect').value=state.profile;$('hapticToggle').checked=state.haptics;$('autoZoomToggle').checked=state.autoZoom;$('strideInput').value=state.strideM.toFixed(2)};
 $('positionBtn').onclick=openPosition;$('openTourSettings').onclick=openTourPicker;$('clearHeadingCalibration').onclick=()=>{state.headingCal={};store.set('cn_heading_cal',{});renderPosition();renderCameraGuide();toast('Heading calibration cleared')};
-$('stepFreeToggle').onchange=e=>{state.stepFree=e.target.checked;store.set('cn_stepfree',state.stepFree);if(state.routeDraft&&(state.destination||state.pendingCheckpoint)){state.pendingCheckpoint?openCheckpointPlanner(state.pendingCheckpoint):openRoutePlanner(state.destination)}};
+$('stepFreeToggle').onchange=e=>{state.stepFree=e.target.checked;store.set('cn_stepfree',state.stepFree);if(state.routeDraft&&(state.destination||state.pendingCheckpoint||state.pendingPlace)){state.pendingPlace?openPlacePlanner(state.pendingPlace,bestReachableCheckpoint(placeCandidates(state.pendingPlace))):state.pendingCheckpoint?openCheckpointPlanner(state.pendingCheckpoint):openRoutePlanner(state.destination)}};
 $('voiceToggle').onchange=e=>{state.voice=e.target.checked;store.set('cn_voice',state.voice)};
 $('hapticToggle').onchange=e=>{state.haptics=e.target.checked;store.set('cn_haptics',state.haptics);if(state.haptics)buzz()};
 $('autoZoomToggle').onchange=e=>{state.autoZoom=e.target.checked;store.set('cn_autozoom',state.autoZoom)};$('strideInput').onchange=e=>{const v=Math.max(.4,Math.min(1.2,Number(e.target.value)||.72));state.strideM=v;e.target.value=v.toFixed(2);store.set('cn_stride_m',v)};
