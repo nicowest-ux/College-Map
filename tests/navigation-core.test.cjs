@@ -51,3 +51,23 @@ console.log('camera-guide heading helpers passed');
 
 const badStairs=N.shortestPath({checkpoints:cps,edges:[{from:'A',to:'B',weight:1,stepFree:true,mode:'stairs'}],startIds:['A'],endIds:['B'],options:{stepFree:true}});
 assert.strictEqual(badStairs,null,'stairs must never pass step-free routing even if mislabelled stepFree');
+
+const turnCps=[
+ {id:'P0',type:'corridor',name:'Surveyed corridor',pos:[0,0]},
+ {id:'P1',type:'corridor',name:'Surveyed corridor',pos:[0,10]},
+ {id:'P2',type:'corridor',name:'Surveyed corridor',pos:[0,20]},
+ {id:'P3',type:'corridor',name:'Surveyed corridor',pos:[10,20]},
+ {id:'DEST',type:'room-section',name:'B999 room section',pos:[20,20]}
+];
+const turnPath=N.shortestPath({checkpoints:turnCps,edges:[
+ {from:'P0',to:'P1',weight:1,mode:'corridor'},
+ {from:'P1',to:'P2',weight:1,mode:'corridor'},
+ {from:'P2',to:'P3',weight:1,mode:'corridor'},
+ {from:'P3',to:'DEST',weight:1,mode:'corridor'}
+],startIds:['P0'],endIds:['DEST'],options:{}});
+const compact=N.compactPathSteps(turnPath,turnCps,{targetLabel:'B999'});
+assert.ok(compact.length<turnPath.segments.length,'straight corridor nodes should be compressed');
+assert.ok(compact.some(s=>s.action==='right'),'meaningful corridor turn should remain');
+assert.ok(!compact.some(s=>/Surveyed corridor/.test(s.text)),'guidance must not expose internal corridor-node names');
+assert.strictEqual(N.routeQuality({precision:'guided room section'}).label,'Interactive corridor guidance');
+console.log('interactive corridor guidance tests passed');
