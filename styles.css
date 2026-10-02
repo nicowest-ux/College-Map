@@ -68,3 +68,10 @@ body.navigating .map-vignette{background:linear-gradient(180deg,rgba(9,14,28,.18
 }
 
 .route-endpoint{stroke:#fff;stroke-width:7;filter:drop-shadow(0 4px 6px rgba(0,0,0,.28))}.route-endpoint.start{fill:#6941c6}.route-endpoint.end{fill:#0b5fff}.route-endpoint-label{fill:#fff;font-size:15px;font-weight:900;text-anchor:middle;pointer-events:none}
+
+/* whole-campus map coverage */
+.zone-layer{pointer-events:none}.zone-hit{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;border:1px solid rgba(105,65,198,.38);background:rgba(255,255,255,.94);box-shadow:0 5px 16px rgba(16,24,40,.16);border-radius:13px;padding:7px 10px;min-width:92px;display:grid;gap:1px;text-align:left;color:#171b2c;backdrop-filter:blur(10px);z-index:2}
+.zone-hit b{font-size:12px;line-height:1.05}.zone-hit small{font-size:8px;color:#667085;white-space:nowrap}.zone-hit.has-precise{border-color:rgba(11,95,255,.45)}
+.room-hit{z-index:4}.room-hit em{position:absolute;left:13px;top:-7px;background:rgba(17,24,39,.9);color:#fff;border-radius:5px;padding:2px 4px;font-size:7px;font-style:normal;font-weight:850;white-space:nowrap;pointer-events:none}
+.floor-zone-sheet .results{max-height:min(58dvh,520px);overflow:auto}
+@media(max-width:600px){.zone-hit{min-width:78px;padding:6px 8px}.zone-hit b{font-size:10px}.zone-hit small{font-size:7px}.room-hit em{font-size:6px}}
