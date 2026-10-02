@@ -67,6 +67,12 @@ jobs:
           ! grep -q '<div id="bootGuard"' /tmp/route-dom.html || { echo "FAIL boot guard"; exit 1; }
           "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom "http://127.0.0.1:8000/?from=C101&to=C109" > /tmp/guided-dom.html
           grep -q 'Interactive corridor guidance' /tmp/guided-dom.html || { echo "FAIL guided corridor route"; exit 1; }
-          ! grep -q 'follow signage' /tmp/guided-dom.html || { echo "FAIL signage fallback"; exit 1; }
+          ! grep -qi 'signage' /tmp/guided-dom.html || { echo "FAIL signage fallback"; exit 1; }
+          "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom "http://127.0.0.1:8000/?from=B007&place=CAREERS" > /tmp/careers-dom.html
+          grep -q 'Futures Careers &amp; Guidance' /tmp/careers-dom.html || grep -q 'Futures Careers & Guidance' /tmp/careers-dom.html || { echo "FAIL careers target"; exit 1; }
+          grep -Eq 'Surveyed turn-by-turn|Interactive corridor guidance' /tmp/careers-dom.html || { echo "FAIL careers corridor route"; exit 1; }
+          "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom "http://127.0.0.1:8000/?from=B007&place=TOILETS" > /tmp/toilet-dom.html
+          grep -q 'Toilets' /tmp/toilet-dom.html || { echo "FAIL toilet target"; exit 1; }
+          grep -Eq 'Surveyed turn-by-turn|Interactive corridor guidance' /tmp/toilet-dom.html || { echo "FAIL toilet corridor route"; exit 1; }
           "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom "http://127.0.0.1:8000/?action=tour" > /tmp/tour-dom.html
           grep -q 'id="tourPickerSheet"' /tmp/tour-dom.html || { echo "FAIL tour picker"; exit 1; }
