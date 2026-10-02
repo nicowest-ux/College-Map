@@ -183,8 +183,8 @@
 
   function routeQuality(route){
     if(!route)return {level:'none',label:'No route',detail:'No route could be built.'};
-    if(route.precision==='survey graph')return {level:'high',label:'Surveyed turn-by-turn',detail:'Every leg follows mapped corridor links.'};
-    if(route.precision==='guided room section')return {level:'good',label:'Interactive corridor guidance',detail:'The journey follows the mapped corridor network; the final doorway is an approximate room-section target until that door is surveyed.'};
+    if(route.precision==='survey graph')return {level:'high',label:'Turn-by-turn route ready',detail:'Follows the mapped corridor network and any required floor changes.'};
+    if(route.precision==='guided room section')return {level:'good',label:'Turn-by-turn route ready',detail:'Follows the mapped corridor network. The final doorway position is approximate until that door is surveyed.'};
     if(route.precision==='verified landmark route')return {level:'good',label:'Landmark guided',detail:'The route is confirmed by named landmarks; some anchor coordinates are still being surveyed.'};
     if(route.precision==='floor-level guidance')return {level:'limited',label:'Partial route data',detail:'Part of this journey still needs a mapped corridor connection.'};
     return {level:'limited',label:'Route data incomplete',detail:'A complete walkable route cannot yet be calculated from the confirmed position.'};
