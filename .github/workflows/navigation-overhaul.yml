@@ -34,3 +34,17 @@ jobs:
           print('inline scripts:',len(scripts))
           PY
           for f in /tmp/scripts/*.js; do node --check "$f"; done
+      - name: Browser smoke test
+        run: |
+          python3 -m http.server 8000 >/tmp/campus-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          sleep 2
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$CHROME" ]; then echo "Chrome unavailable on runner"; exit 1; fi
+          "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom "http://127.0.0.1:8000/?from=B007&to=B014" > /tmp/route-dom.html
+          grep -q 'id="plannerSheet"' /tmp/route-dom.html
+          grep -q 'Landmark guided' /tmp/route-dom.html
+          grep -q 'B007' /tmp/route-dom.html
+          grep -q 'B014' /tmp/route-dom.html
+          ! grep -q 'Campus Navigator could not start' /tmp/route-dom.html
