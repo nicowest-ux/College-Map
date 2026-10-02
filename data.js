@@ -76,6 +76,33 @@ const places=[
  {id:'LIFT',name:'Lift / Step-free access',kind:'Accessibility',room:null,icon:'↕',keywords:['lift','elevator','wheelchair','step free','step-free','accessible'],description:'The campus states wheelchair access throughout; exact lift-to-lift route geometry is being verified.'},
  {id:'WATER',name:'Water refill',kind:'Facilities',room:null,icon:'◌',keywords:['water','refill','bottle','fountain'],description:'Water fountains are available around the college; exact refill pins are being verified.'}
 ];
+const tourScenes={
+ FYI:{mediaName:'The FYi - Ground Floor',exact:true},
+ FRAME:{mediaName:'The Frame',exact:true},
+ THEATRE:{mediaName:'Theatre',exact:true},
+ SPORTS:{mediaName:'Sports Hall',exact:true},
+ GYM:{mediaName:'The Gym',exact:true},
+ FOCUS:{mediaName:'Focus Centre',exact:true},
+ FOOD:{mediaName:'Relish',exact:false,note:'This opens Relish as a representative food location; Food & Drink includes several outlets.'},
+ SCIENCE:{mediaName:'Science Lab',exact:true},
+ DIGITAL:{mediaName:'Media Room - Film and Television',exact:false,note:'This is a representative digital/media teaching space, not a room-number match.'},
+ FAITH:{mediaName:'Reflect - The Faith Space',exact:true},
+ RECEPTION:{mediaName:'Reception',exact:true},
+ CAREERS:{mediaName:'The FYi',exact:false,note:'Futures Careers & Guidance is based at the back of the FYi; this opens the FYi panorama.'}
+};
+const roomTourScenes={
+ S001:{mediaName:'Sports Hall',exact:true}
+};
+const tourMedia=[
+ 'Back foyer','Cafe Six','Committee Room','Costa','Drama Studio','Electronics Classroom','Engineering','Engineering 1','Engineering 2','Engineering 3',
+ 'Focus Centre','Focus Centre1','Front foyer','Graphic Design Classroom','Health and Social Care Classroom','History Classroom','Holland','Holland - Performing Room',
+ 'Holland - Performing Room 1','Holland - Performing Room 2','Holland - Performing Room(1)','Holland - Recording Studio','IT Classroom','Media Room - Film and Television',
+ 'Photography Classroom','Photography Studio','Reception','Reflect - The Faith Space','Relish','Relish1','Science Lab','Spanish Classroom','Sports Hall','T Level Digital Room',
+ 'T Level Health Ward','The Deli','The FYi','The FYi - Ground Floor','The FYi 1','The FYi 2','The Frame','The Frame - Fashion and Textiles',
+ 'The Frame - Fashion and Textiles 1','The Frame - Fine Art 1','The Frame - Fine Art 2','The Frame 1','The Green Room - Film and Television','The Gym',
+ 'The Gym 1','The Gym 2','The Link','The Poly Tunnel and Allotment','The Quad','The Quad 1','The Store','The Store 1','The frame 2','The link1',
+ 'Theatre','Theatre - Top view','Travel and Tourism Classroom'
+];
 const intentGroups=[
  {id:'it-help',label:'I need IT help',keywords:['it help','computer problem','laptop problem','wifi','password','technical support'],place:'TECH'},
  {id:'exam-help',label:'I have an exam',keywords:['exam','exams','assessment'],place:'EXAMS'},
@@ -143,6 +170,6 @@ const surveyTypes=[
  {id:'landmark',label:'Landmark',icon:'◉'}
 ];
 
-window.CAMPUS_V6={image:{width:2560,height:1527,src:'floorplan.png',sourceDate:'September 2017'},floorViews,rooms,specialRoutes,routeTemplates,checkpoints,edges,restrictions,surveyTypes,departments:dep,places,intentGroups,tourUrl};
+window.CAMPUS_V6={image:{width:2560,height:1527,src:'floorplan.png',sourceDate:'September 2017'},floorViews,rooms,specialRoutes,routeTemplates,checkpoints,edges,restrictions,surveyTypes,departments:dep,places,intentGroups,tourUrl,tourScenes,roomTourScenes,tourMedia};
 window.CAMPUS_V5=window.CAMPUS_V6;
 })();
