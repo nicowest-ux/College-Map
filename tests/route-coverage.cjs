@@ -79,4 +79,32 @@ for(const x of reach.filter(x=>x.route)){
 let pairs=0,ok=0,sf=0;
 for(let i=0;i<reps.length;i++)for(let j=i+1;j<reps.length;j++){pairs++;const p=route(reps[i].room,reps[j].room,false);if(p)ok++;if(route(reps[i].room,reps[j].room,true))sf++}
 console.log('\nFloor-pair connectivity:',ok+'/'+pairs,'general;',sf+'/'+pairs,'step-free');
+
+// Candidate joins between disconnected corridor components on the same level.
+// These are diagnostics only; they are not automatically added to routing.
+const corridor=(D.checkpoints||[]).filter(x=>x.type==='corridor'&&x.pos);
+const corridorIds=new Set(corridor.map(x=>x.id));
+const adj=new Map(corridor.map(x=>[x.id,new Set()]));
+for(const e of D.edges||[]){
+ if(corridorIds.has(e.from)&&corridorIds.has(e.to)){adj.get(e.from).add(e.to);adj.get(e.to).add(e.from)}
+}
+const component=new Map();let ci=0;
+for(const n of corridor){
+ if(component.has(n.id))continue;const stack=[n.id];component.set(n.id,ci);
+ while(stack.length){const id=stack.pop();for(const nb of adj.get(id)||[]){if(!component.has(nb)){component.set(nb,ci);stack.push(nb)}}}
+ ci++;
+}
+const deg=id=>(adj.get(id)?.size||0);
+const endNodes=corridor.filter(x=>deg(x.id)<=1);
+const candidates=[];
+for(let i=0;i<endNodes.length;i++)for(let j=i+1;j<endNodes.length;j++){
+ const a=endNodes[i],b=endNodes[j];if(a.floor!==b.floor||component.get(a.id)===component.get(b.id))continue;
+ const dist=Core.distance(a.pos,b.pos);if(dist<=180)candidates.push({a,b,dist});
+}
+candidates.sort((x,y)=>x.dist-y.dist);
+console.log('\nNearest disconnected corridor-end candidates (diagnostic only):');
+for(const x of candidates.slice(0,40))console.log(
+ ' -',x.dist.toFixed(1)+'px',x.a.id,'['+x.a.bldg+' '+x.a.floor+']',JSON.stringify(x.a.pos),
+ '<->',x.b.id,'['+x.b.bldg+' '+x.b.floor+']',JSON.stringify(x.b.pos)
+);
 process.exitCode=0;
