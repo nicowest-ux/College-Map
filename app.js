@@ -368,4 +368,11 @@ setTimeout(()=>{
  if(action==='search')openSearch('browse');if(action==='assistant')showAssistant();if(action==='tour')openTour()
 },80);
 window.__CN_BOOTED=true;
+const bootGuard=document.getElementById('bootGuard');
+if(bootGuard){
+  bootGuard.style.transition='opacity .18s ease';
+  bootGuard.style.opacity='0';
+  bootGuard.style.pointerEvents='none';
+  setTimeout(()=>bootGuard.remove(),220);
+}
 })();
