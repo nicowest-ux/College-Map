@@ -471,7 +471,7 @@ function renderPlanner(){
  const q=routeQuality(r);$('plannerQuality').dataset.level=q.level;$('plannerQuality').innerHTML='<b>'+q.label+'</b><span>'+q.detail+'</span>';
  $('plannerSummary').textContent=plannerSummary(r);
  const warning=$('plannerWarning');warning.hidden=!r.note&&!r.blocked;warning.textContent=r.note||'';
- const begin=$('plannerBegin');begin.disabled=!!r.blocked&&r.blockedReason!=='start';begin.textContent=r.blocked?(r.blockedReason==='start'?'Choose starting point':r.blockedReason==='coverage'?'Route connection needed':'Route not verified'):'Start turn-by-turn';if($('plannerVisual'))$('plannerVisual').hidden=!r.tourScene;
+ const begin=$('plannerBegin');begin.disabled=!!r.blocked&&!['start','coverage'].includes(r.blockedReason);begin.textContent=r.blocked?(r.blockedReason==='start'?'Choose starting point':r.blockedReason==='coverage'?'Re-anchor & recalculate':'Route not verified'):'Start turn-by-turn';if($('plannerVisual'))$('plannerVisual').hidden=!r.tourScene;
  $('plannerGeneral').hidden=!(r.blocked&&r.blockedReason==='stepfree');
  $('plannerSwap').hidden=!(r.a&&r.b);
 }
@@ -551,7 +551,7 @@ function openLostRecovery(){
 $('plannerChangeStart').onclick=()=>{closeSheets();openSearch('start')};
 $('plannerChangeDest').onclick=()=>{closeSheets();openSearch('destination')};
 $('plannerSwap').onclick=()=>{const r=state.routeDraft;if(!r?.a||!r?.b)return;const old=r.a;state.start=r.b;const p=posFor(r.b),cp=allCheckpoints().find(c=>c.room===r.b.id&&c.pos);if(p)setPosition(p,'room start: '+r.b.id,r.b.id,cp?.id||null,100);else{state.position={pos:null,source:'room start: '+r.b.id,roomId:r.b.id,checkpointId:null,at:Date.now()};store.set('cn_position',state.position);renderPosition()}state.destination=old;openRoutePlanner(old)};
-$('plannerBegin').onclick=()=>{if(state.routeDraft?.blockedReason==='start'){openPosition();return}beginRoute(state.routeDraft)};$('plannerVisual').onclick=()=>{const s=state.routeDraft?.tourScene;if(s)openTour(s,state.routeDraft?.targetLabel);else openTourPicker()};
+$('plannerBegin').onclick=()=>{if(state.routeDraft?.blockedReason==='start'){openPosition();return}if(state.routeDraft?.blockedReason==='coverage'){closeSheets();openLandmarks();toast('Choose a nearby room or landmark and I’ll recalculate');return}beginRoute(state.routeDraft)};$('plannerVisual').onclick=()=>{const s=state.routeDraft?.tourScene;if(s)openTour(s,state.routeDraft?.targetLabel);else openTourPicker()};
 $('plannerGeneral').onclick=()=>{if(state.pendingPlace)openPlacePlanner(state.pendingPlace,bestReachableCheckpoint(placeCandidates(state.pendingPlace)),{ignoreStepFree:true});else if(state.pendingCheckpoint)openCheckpointPlanner(state.pendingCheckpoint,{ignoreStepFree:true});else if(state.destination)openRoutePlanner(state.destination,{ignoreStepFree:true})};
 $('nextStep').onclick=nextRouteStep;$('prevStep').onclick=()=>{if(state.route&&state.routeIndex>0){state.routeIndex--;renderRoute();focusCurrentLeg()}};
 $('speakStep').onclick=speak;$('endRoute').onclick=endRoute;$('visualCheck').onclick=openRouteVisual;$('recalibrate').onclick=openPosition;$('guideLensClose').onclick=()=>$('guideLens').hidden=true;$('tourBackToGuide').onclick=()=>{closeTour();$('routeCard').hidden=false};
