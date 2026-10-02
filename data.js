@@ -167,7 +167,14 @@ const routeTemplates={
    ]
  }
 };
-const edges=[...annotatedEdges];
+const verticalEdges=[
+ // Brock/Wyre east stair core: Ground -> Wyre First Floor.
+ // These nodes sit immediately beside the stair landings shown on the college floorplan.
+ {from:'ANN_Brock_G_21',to:'ANN_Brock_G_23',mode:'corridor',access:'public',stepFree:null,source:'floorplan-connector',instruction:'Continue to the stairwell beside W006.'},
+ {from:'ANN_Brock_G_23',to:'ANN_Wyre_1_0',mode:'stairs',access:'public',stepFree:false,source:'floorplan-stair-core',instruction:'Take the stairs to the First Floor.',reverseInstruction:'Take the stairs down to the Ground Floor.'},
+ {from:'ANN_Wyre_1_1',to:'ANN_Wyre_1_4',mode:'corridor',access:'public',stepFree:null,source:'floorplan-connector',instruction:'Leave the stair landing and join the Wyre First Floor corridor.',reverseInstruction:'Continue to the stair landing.'}
+];
+const edges=[...annotatedEdges,...verticalEdges];
 const restrictions=[
  {from:'B007',to:'B014',type:'staff-only',description:'The direct internal corridor between the Tech Support and Exams side is staff-only for students.'}
 ];
