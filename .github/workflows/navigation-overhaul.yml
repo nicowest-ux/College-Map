@@ -53,10 +53,10 @@ jobs:
           CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
           if [ -z "$CHROME" ]; then echo "Chrome unavailable on runner"; exit 1; fi
           "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom "http://127.0.0.1:8000/?from=B007&to=B014" > /tmp/route-dom.html
-          grep -q 'id="plannerSheet"' /tmp/route-dom.html
-          grep -q 'B007' /tmp/route-dom.html
-          grep -q 'B014' /tmp/route-dom.html
-          ! grep -q 'Campus Navigator could not start' /tmp/route-dom.html
-          ! grep -q '<div id="bootGuard"' /tmp/route-dom.html
+          grep -q 'id="plannerSheet"' /tmp/route-dom.html || { echo "FAIL plannerSheet"; exit 1; }
+          grep -q 'B007' /tmp/route-dom.html || { echo "FAIL B007"; exit 1; }
+          grep -q 'B014' /tmp/route-dom.html || { echo "FAIL B014"; exit 1; }
+          ! grep -q 'Campus Navigator could not start' /tmp/route-dom.html || { echo "FAIL runtime error"; exit 1; }
+          ! grep -q '<div id="bootGuard"' /tmp/route-dom.html || { echo "FAIL boot guard"; exit 1; }
           "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom "http://127.0.0.1:8000/?action=tour" > /tmp/tour-dom.html
-          grep -q 'id="tourPickerSheet"' /tmp/tour-dom.html
+          grep -q 'id="tourPickerSheet"' /tmp/tour-dom.html || { echo "FAIL tour picker"; exit 1; }
