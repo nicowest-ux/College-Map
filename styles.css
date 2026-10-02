@@ -66,3 +66,5 @@ body.navigating .map-vignette{background:linear-gradient(180deg,rgba(9,14,28,.18
  .route-primary-actions{grid-template-columns:1fr}.route-context{display:grid;grid-template-columns:repeat(2,1fr);overflow:visible}.route-context button{white-space:normal;min-height:38px}
  .planner-actions{display:grid;grid-template-columns:1fr}.planner-actions .primary{margin-left:0}.planner-actions button{width:100%}
 }
+
+.route-endpoint{stroke:#fff;stroke-width:7;filter:drop-shadow(0 4px 6px rgba(0,0,0,.28))}.route-endpoint.start{fill:#6941c6}.route-endpoint.end{fill:#0b5fff}.route-endpoint-label{fill:#fff;font-size:15px;font-weight:900;text-anchor:middle;pointer-events:none}
