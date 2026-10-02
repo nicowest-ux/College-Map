@@ -1,7 +1,7 @@
 name: Navigation overhaul checks
 on:
   push:
-    branches: [main, navigation-overhaul-v6, camera-guide-v6, annotated-navigation-seed, map-layer-overhaul-v6, guided-routing-overhaul-v6, route-experience-v7]
+    branches: [main, navigation-overhaul-v6, camera-guide-v6, annotated-navigation-seed, map-layer-overhaul-v6, guided-routing-overhaul-v6, route-experience-v7, route-coverage-audit-v7]
 permissions:
   contents: read
 jobs:
@@ -53,6 +53,8 @@ jobs:
           print('inline scripts:',len(scripts))
           PY
           for f in /tmp/scripts/*.js; do node --check "$f"; done
+      - name: Route coverage audit
+        run: node tests/route-coverage.cjs
       - name: Browser smoke test
         run: |
           python3 -m http.server 8000 >/tmp/campus-http.log 2>&1 &
