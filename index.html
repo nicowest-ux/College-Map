@@ -160,7 +160,8 @@ body.navigating #checkpointLayer .checkpoint-hit:not(.important){display:none!im
  </aside>
  <aside id="routeCard" class="route-card" hidden>
    <div class="route-head"><div><small id="routeEyebrow">GUIDED ROUTE</small><h2 id="routeTitle"></h2><p id="routeStatus"></p></div><button id="endRoute" class="icon ghost" aria-label="End route">×</button></div>
-   <div id="routeTrust" class="route-trust"><b>Route quality</b><span></span></div>
+   <div id="routeTrust" class="route-trust"><b>Route status</b><span></span></div>
+   <div id="routeFloorContext" class="route-floor-context"></div>
    <div class="route-progress"><i id="routeProgress"></i></div>
    <div id="nextInstruction" class="next-step"></div>
    <div id="routeNextPreview" class="route-next-preview" hidden></div>
@@ -181,8 +182,9 @@ body.navigating #checkpointLayer .checkpoint-hit:not(.important){display:none!im
  <div class="planner-line"></div>
  <button id="plannerChangeDest" class="planner-point"><span class="planner-dot end"></span><span><small>TO</small><b id="plannerTo">Destination</b></span><i>›</i></button>
 </div>
-<div id="plannerQuality" class="planner-quality"><b>Route quality</b><span></span></div>
+<div id="plannerQuality" class="planner-quality"><b>Route status</b><span></span></div>
 <div id="plannerSummary" class="planner-summary"></div>
+<div id="plannerJourney" class="planner-journey" hidden><small>YOUR JOURNEY</small><div id="plannerJourneySteps" class="planner-journey-steps"></div></div>
 <div id="plannerWarning" class="planner-warning" hidden></div>
 <div class="planner-actions"><button id="plannerSwap">⇅ Swap</button><button id="plannerGeneral" hidden>Show general route — not verified step-free</button><button id="plannerVisual" hidden>◉ Use 360° visual guide</button><button id="plannerBegin" class="primary">Start guidance</button></div>
 </section>
