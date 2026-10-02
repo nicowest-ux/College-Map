@@ -123,12 +123,14 @@ if(annotatedSource){
  for(const [key,g] of Object.entries(annotatedSource.floors||{})){
   const [bldg,floor]=key.split('|');
   (g.p||[]).forEach((pos,i)=>annotatedCheckpoints.push({id:'ANN_'+key.replace(/[^A-Za-z0-9]+/g,'_')+'_'+i,name:'Surveyed corridor',type:'corridor',bldg,floor,pos,verified:true,source:'annotated-corridor'}));
-  (g.e||[]).forEach(([a,b])=>annotatedEdges.push({from:'ANN_'+key.replace(/[^A-Za-z0-9]+/g,'_')+'_'+a,to:'ANN_'+key.replace(/[^A-Za-z0-9]+/g,'_')+'_'+b,mode:'corridor',access:'public',stepFree:null,source:'annotated-corridor'}));
+  (g.e||[]).forEach(([a,b])=>annotatedEdges.push({from:'ANN_'+key.replace(/[^A-Za-z0-9]+/g,'_')+'_'+a,to:'ANN_'+key.replace(/[^A-Za-z0-9]+/g,'_')+'_'+b,mode:'corridor',access:'public',stepFree:true,source:'annotated-corridor'}));
  }
  for(const t of annotatedSource.toilets||[]){const [id,y,x,bldg,floor]=t;annotatedCheckpoints.push({id,name:'Toilets',type:'toilet',bldg,floor,pos:[y,x],verified:true,source:'user-highlighted-toilet',keywords:['toilet','toilets','wc','loo']})}
  for(const l of annotatedSource.landmarks||[]){const [id,name,y,x,bldg,floor]=l;annotatedCheckpoints.push({id:'LANDMARK_'+id,name,type:'landmark',bldg,floor,pos:[y,x],verified:true,source:'user-labelled-landmark',keywords:[name.toLowerCase()]})}
 }
 const checkpoints=[...annotatedCheckpoints,
+ {id:'WYRE_LIFT_G',name:'Wyre lift — Ground Floor',type:'lift',bldg:'Wyre',floor:'G',pos:[874,1610],verified:true,source:'floorplan-lift-symbol',keywords:['wyre lift','lift','elevator','w002','w003']},
+ {id:'WYRE_LIFT_1',name:'Wyre lift — First Floor',type:'lift',bldg:'Wyre',floor:'1',pos:[530,1861],verified:true,source:'floorplan-lift-symbol',keywords:['wyre lift','lift','elevator','w105','w11ss']},
  {id:'B007_DOOR',name:'Tech Support doorway',type:'room',room:'B007',bldg:'Brock',floor:'G',pos:[558,1397],verified:true,keywords:['tech support','b007','it support']},
  {id:'B014_DOOR',name:'Exams doorway',type:'room',room:'B014',bldg:'Brock',floor:'G',pos:[562,1526],verified:true,keywords:['exams','b014','exam office']},
  {id:'BROCK_QUAD_EXIT_TECH',name:'Doors from Tech Support to the quad',type:'entrance',bldg:'Brock',floor:'G',pos:null,verified:false,keywords:['quad doors','tech doors','outside']},
@@ -173,6 +175,9 @@ const verticalEdges=[
  {from:'ANN_Brock_G_21',to:'ANN_Brock_G_23',mode:'corridor',access:'public',stepFree:null,source:'floorplan-connector',instruction:'Continue to the stairwell beside W006.'},
  {from:'ANN_Brock_G_23',to:'ANN_Wyre_1_0',mode:'stairs',access:'public',stepFree:false,source:'floorplan-stair-core',instruction:'Take the stairs to the First Floor.',reverseInstruction:'Take the stairs down to the Ground Floor.'},
  {from:'ANN_Wyre_1_1',to:'ANN_Wyre_1_4',mode:'corridor',access:'public',stepFree:null,source:'floorplan-connector',instruction:'Leave the stair landing and join the Wyre First Floor corridor.',reverseInstruction:'Continue to the stair landing.'}
+ {from:'ANN_Wyre_G_5',to:'WYRE_LIFT_G',mode:'corridor',access:'public',stepFree:true,source:'floorplan-connector',instruction:'Continue through FYi to the lift beside W002 / W003.',reverseInstruction:'Leave the lift and continue through FYi toward Brock.'},
+ {from:'WYRE_LIFT_G',to:'WYRE_LIFT_1',mode:'lift',access:'public',stepFree:true,source:'floorplan-lift-core',instruction:'Take the lift to the First Floor.',reverseInstruction:'Take the lift down to the Ground Floor.'},
+ {from:'WYRE_LIFT_1',to:'ANN_Wyre_1_15',mode:'corridor',access:'public',stepFree:true,source:'floorplan-connector',instruction:'Leave the lift and join the Wyre First Floor corridor.',reverseInstruction:'Continue to the Wyre lift.'}
 ];
 const edges=[...annotatedEdges,...verticalEdges];
 const restrictions=[
