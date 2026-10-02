@@ -1,7 +1,7 @@
 name: Navigation overhaul checks
 on:
   push:
-    branches: [main, navigation-overhaul-v6]
+    branches: [main, navigation-overhaul-v6, camera-guide-v6]
 permissions:
   contents: read
 jobs:
@@ -27,6 +27,13 @@ jobs:
           assert 'CampusNavCore' in s
           assert 'v6 navigation experience overhaul' in s
           assert 'Heading assist' in s
+          assert 'id="cameraGuide"' in s
+          assert 'id="cameraVideo"' in s
+          assert 'id="tourPickerSheet"' in s
+          assert 'cameraGuideBtn' in s
+          assert 'tourSceneUrl' in s
+          assert 'getUserMedia' in s
+          assert 'media-name=' in s
           scripts=re.findall(r'<script>(.*?)</script>',s,re.S)
           Path('/tmp/scripts').mkdir(exist_ok=True)
           for i,code in enumerate(scripts):
@@ -49,3 +56,7 @@ jobs:
           grep -q 'B014' /tmp/route-dom.html
           ! grep -q 'Campus Navigator could not start' /tmp/route-dom.html
           ! grep -q '<div id="bootGuard"' /tmp/route-dom.html
+          "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom "http://127.0.0.1:8000/?action=tour" > /tmp/tour-dom.html
+          grep -q 'id="tourPickerSheet"' /tmp/tour-dom.html
+          grep -q 'The FYi' /tmp/tour-dom.html
+          grep -q 'Sports Hall' /tmp/tour-dom.html
