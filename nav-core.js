@@ -156,6 +156,7 @@
       else if(mode==='lift'){action='lift';icon='↕';text='Take the lift'+(to?.floor?' to '+(options.floorLabel?options.floorLabel(to.floor):to.floor):'')+'.'}
       else if(mode==='stairs'){action='stairs';icon='⇅';text='Take the stairs'+(to?.floor?' to '+(options.floorLabel?options.floorLabel(to.floor):to.floor):'')+'.'}
       else if(mode==='outside'){text=(derived.label||'Continue')+' along the outdoor route.'}
+      else if(mode==='doorway'){text=(from?.room?('Leave '+from.room):'Leave your starting point')+' and join the corridor.'}
       else if(last){text='Arrive at '+(options.targetLabel||to?.name||seg.to)+'.'}
       else {
         const destName=to&&to.type!=='corridor'&&to.type!=='room-section'&&to.name?to.name:null;
