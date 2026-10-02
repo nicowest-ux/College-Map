@@ -29,6 +29,46 @@
   .sheet{max-height:88dvh}
 }
 @media(max-width:380px){.brandcopy small{font-size:11px}.omnibox small{font-size:10px}.intent{font-size:11px}.welcome-card h1{font-size:18px}}
+
+
+/* v6 navigation experience overhaul */
+.resume-route{width:100%;border:1px solid #d7d1f4;background:linear-gradient(135deg,#f2edff,#edf5ff);border-radius:16px;padding:10px 12px;margin:0 0 10px;display:grid;grid-template-columns:38px 1fr 20px;gap:9px;align-items:center;text-align:left;color:var(--text)}
+.resume-route>span:first-child{width:36px;height:36px;border-radius:12px;background:#6941c6;color:#fff;display:grid;place-items:center;font-size:19px;font-weight:900}
+.resume-route>span:nth-child(2){display:grid;gap:2px;min-width:0}.resume-route b{font-size:12px}.resume-route small{color:var(--muted);font-size:10px}.resume-route i{font-style:normal;color:var(--accent);font-size:20px}
+
+.planner-sheet{overflow:auto}.planner-points{margin:14px 0 10px;background:#f7f8fb;border:1px solid var(--line);border-radius:18px;padding:9px}
+.planner-point{width:100%;border:0;background:transparent;padding:9px;display:grid;grid-template-columns:18px 1fr 20px;align-items:center;gap:10px;text-align:left;color:var(--text)}
+.planner-point>span:nth-child(2){display:grid;gap:2px}.planner-point small{font-size:9px;letter-spacing:.12em;font-weight:900;color:var(--muted)}.planner-point b{font-size:14px}.planner-point i{font-style:normal;color:var(--muted);font-size:18px}
+.planner-dot{width:12px;height:12px;border-radius:50%;display:block;box-shadow:0 0 0 4px rgba(105,65,198,.10)}.planner-dot.start{background:#6941c6}.planner-dot.end{background:#0b5fff}.planner-line{width:2px;height:16px;background:#cfd6e2;margin:-3px 0 -3px 14px}
+.planner-quality,.route-trust{border:1px solid var(--line);border-radius:14px;padding:10px 11px;display:grid;gap:3px;background:#f8fafc}
+.planner-quality b,.route-trust b{font-size:11px}.planner-quality span,.route-trust span{font-size:10px;color:var(--muted);line-height:1.4}
+.planner-quality[data-level=high],.route-trust[data-level=high]{background:#eaf8ef;border-color:#b9e1c8}.planner-quality[data-level=good],.route-trust[data-level=good]{background:#eef5ff;border-color:#cbdcf7}.planner-quality[data-level=limited],.route-trust[data-level=limited]{background:#fff6e8;border-color:#f0d8ac}.planner-quality[data-level=none],.route-trust[data-level=none]{background:#fff0f0;border-color:#f0c6c6}
+.planner-summary{font-size:12px;font-weight:800;margin:10px 2px 0}.planner-warning{margin:10px 0 0;padding:10px 12px;border-radius:13px;background:#fff6e8;border:1px solid #f0d8ac;color:#7a4b00;font-size:11px;line-height:1.45}
+.planner-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.planner-actions button{border:1px solid var(--line);background:var(--solid);border-radius:12px;padding:11px 12px;font-weight:800;color:var(--text)}.planner-actions .primary{margin-left:auto}.planner-actions button:disabled{opacity:.55;cursor:not-allowed}
+
+.route-card{overflow:auto}.route-head p{margin:3px 0 0;color:var(--muted);font-size:10px}.route-trust{margin:9px 0}.next-step{display:grid;grid-template-columns:48px 1fr;gap:10px;align-items:center;font-size:16px;line-height:1.35;padding:12px}
+.instruction-icon{width:46px;height:46px;border-radius:14px;background:linear-gradient(145deg,#6941c6,#0b5fff);color:white;display:grid;place-items:center;font-size:25px;font-weight:900}
+.route-next-preview{margin:8px 2px 0;font-size:10px;color:var(--muted);line-height:1.4}
+.route-primary-actions{display:grid;grid-template-columns:1.35fr 1fr;gap:8px;margin:10px 0}.route-primary-actions button{min-height:46px;border:1px solid var(--line);background:var(--solid);border-radius:13px;padding:9px 10px;font-weight:850;color:var(--text)}.route-primary-actions .primary{background:#121a2e!important;color:#fff!important}
+.route-context{padding:0 0 6px}.route-all{border-top:1px solid var(--line);margin-top:6px;padding-top:8px}.route-all summary{cursor:pointer;font-size:10px;font-weight:850;color:var(--muted);padding:5px 0}.route-all ol{margin:4px 0 0}.route-card li.done{opacity:.55}.route-card li.current{background:#f3f0ff;border-radius:8px;padding-left:6px}
+.route-actions{margin-top:7px}.route-actions button{width:100%;background:transparent!important}
+
+body.navigating .bottom,body.navigating .welcome-card,body.navigating .accuracy{display:none!important}
+body.navigating .topbar{display:none!important}
+body.navigating .guide-lens{top:max(calc(env(safe-area-inset-top,0px) + 8px),8px);width:min(620px,calc(100% - 20px));z-index:1500}
+body.navigating .route-card{z-index:1500}
+body.navigating .map-vignette{background:linear-gradient(180deg,rgba(9,14,28,.18),transparent 24%,transparent 70%,rgba(9,14,28,.24))}
+
+@media(max-width:900px){
+ body.navigating .route-card{left:10px;right:10px;bottom:max(calc(env(safe-area-inset-bottom,0px) + 8px),8px);width:auto;max-height:min(48dvh,430px);border-radius:22px;padding:13px}
+ body.navigating .route-head h2{font-size:16px;margin:2px 0}.route-card .route-head .icon{width:36px;height:36px}
+ body.navigating .guide-lens{grid-template-columns:46px 1fr 36px}.route-primary-actions{grid-template-columns:1fr 1fr}
+}
+@media(max-width:430px){
+ .next-step{grid-template-columns:42px 1fr;font-size:15px}.instruction-icon{width:40px;height:40px;font-size:22px}
+ .route-primary-actions{grid-template-columns:1fr}.route-context{display:grid;grid-template-columns:repeat(2,1fr);overflow:visible}.route-context button{white-space:normal;min-height:38px}
+ .planner-actions{display:grid;grid-template-columns:1fr}.planner-actions .primary{margin-left:0}.planner-actions button{width:100%}
+}
 </style><title>Campus Navigator</title></head>
 <body><div id="bootGuard" style="position:fixed;z-index:99999;inset:0;display:grid;place-items:center;background:#eef2f7;color:#111827;font:600 15px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif"><div style="background:white;border-radius:18px;padding:18px 20px;box-shadow:0 14px 40px rgba(16,24,40,.14);max-width:calc(100% - 32px);text-align:center"><b>Starting Campus Navigator…</b><div id="bootDetail" style="font-size:12px;color:#667085;margin-top:6px">Loading campus map and guide</div></div></div><script>(function(){window.__CN_BOOTED=false;function fail(m){var d=document.getElementById('bootDetail');if(d)d.textContent='Could not start: '+m;}window.addEventListener('error',function(e){fail(e.message||'JavaScript error');});window.addEventListener('unhandledrejection',function(){fail('A startup task failed');});setTimeout(function(){if(!window.__CN_BOOTED)fail('The app did not finish loading. Please refresh this page.');},6000);})();</script>
 <div id="offline" class="banner" hidden>Offline — map and saved campus data are still available. 360° tour needs a connection.</div>
