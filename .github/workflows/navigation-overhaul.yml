@@ -48,3 +48,4 @@ jobs:
           grep -q 'B007' /tmp/route-dom.html
           grep -q 'B014' /tmp/route-dom.html
           ! grep -q 'Campus Navigator could not start' /tmp/route-dom.html
+          ! grep -q '<div id="bootGuard"' /tmp/route-dom.html
