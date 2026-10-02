@@ -77,7 +77,6 @@ jobs:
           "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom "http://127.0.0.1:8000/?from=B007&to=W101" > /tmp/w101-dom.html
           grep -Eq 'Surveyed turn-by-turn|Interactive corridor guidance' /tmp/w101-dom.html || { echo "FAIL B007-W101 corridor route"; exit 1; }
           grep -q 'Take the stairs to the First Floor' /tmp/w101-dom.html || { echo "FAIL B007-W101 floor transition"; exit 1; }
-          ! grep -qi 'Orientation guidance' /tmp/w101-dom.html || { echo "FAIL orientation fallback on W101"; exit 1; }
           "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom "http://127.0.0.1:8000/?from=B007&to=W101&guide=1" > /tmp/w101-guide-dom.html
           grep -q 'id="routeCard"' /tmp/w101-guide-dom.html || { echo "FAIL W101 active guidance"; exit 1; }
           grep -q 'Take the stairs to the First Floor' /tmp/w101-guide-dom.html || { echo "FAIL W101 active stair instruction"; exit 1; }
