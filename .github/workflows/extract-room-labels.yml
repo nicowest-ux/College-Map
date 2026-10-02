@@ -1,0 +1,29 @@
+name: Extract floorplan room labels
+on:
+  push:
+    branches: [floorplan-room-label-audit]
+    paths:
+      - "tools/extract_room_labels.py"
+      - ".github/workflows/extract-room-labels.yml"
+      - "floorplan.png"
+      - "data.js"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install OCR
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr
+          python -m pip install --disable-pip-version-check pillow
+      - name: Extract room label positions
+        run: python tools/extract_room_labels.py
+      - name: Upload audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: room-label-audit
+          path: audit/room-label-positions.json
