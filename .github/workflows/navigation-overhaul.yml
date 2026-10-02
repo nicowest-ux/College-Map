@@ -1,7 +1,7 @@
 name: Navigation overhaul checks
 on:
   push:
-    branches: [main, navigation-overhaul-v6, camera-guide-v6, annotated-navigation-seed]
+    branches: [main, navigation-overhaul-v6, camera-guide-v6, annotated-navigation-seed, map-layer-overhaul-v6]
 permissions:
   contents: read
 jobs:
@@ -35,7 +35,9 @@ jobs:
           assert 'tourSceneUrl' in s
           assert 'getUserMedia' in s
           assert 'media-name=' in s
-          assert 'corridorSvg' in s
+          assert 'corridorSvg' not in s
+          assert 'clean map marker hierarchy' in s
+          assert 'map-room-marker' in s
           assert 'CAMPUS_ANNOTATED_NAV' in s
           scripts=re.findall(r'<script>(.*?)</script>',s,re.S)
           Path('/tmp/scripts').mkdir(exist_ok=True)
