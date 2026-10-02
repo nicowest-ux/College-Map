@@ -122,6 +122,7 @@
         closed:seg.edge.closed===true,
         seconds:Number.isFinite(+seg.edge.seconds)?+seg.edge.seconds:null,
         meters:Number.isFinite(+seg.edge.meters)?+seg.edge.meters:null,
+        mode:seg.edge.mode||null,
         geometry:!!(from?.pos&&to?.pos),
         nextAnchor:next?.id||null
       };
@@ -153,5 +154,5 @@
     return Math.round(clamp(Math.min(base,Number(positionConfidence)||base),0,100));
   }
 
-  return {distance,bearing,turn,edgeAllowed,shortestPath,pathSteps,routeQuality,pathMetrics,routeConfidence};
+  return {clamp,normAngle,angleDelta,distance,bearing,turn,edgeAllowed,shortestPath,pathSteps,routeQuality,pathMetrics,routeConfidence};
 });
