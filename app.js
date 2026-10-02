@@ -21,8 +21,8 @@ for(const key of [...state.saved]){if(!String(key).includes(':')){state.saved.de
 
 /* ---------- zero-dependency image map engine ---------- */
 const mapEl=$('map');
-mapEl.innerHTML=`<div id="mapStage" class="map-stage"><img id="floorImage" draggable="false" alt="Campus floor plans"><svg id="routeSvg" class="route-svg" viewBox="0 0 ${D.image.width} ${D.image.height}" preserveAspectRatio="none"></svg><div id="zoneLayer" class="map-layer zone-layer"></div><div id="roomLayer" class="map-layer"></div><div id="checkpointLayer" class="map-layer"></div><div id="positionLayer" class="map-layer"></div></div>`;
-const stage=$('mapStage'),img=$('floorImage'),zoneLayer=$('zoneLayer'),roomLayer=$('roomLayer'),checkpointLayer=$('checkpointLayer'),positionLayer=$('positionLayer'),routeSvg=$('routeSvg');
+mapEl.innerHTML=`<div id="mapStage" class="map-stage"><img id="floorImage" draggable="false" alt="Campus floor plans"><svg id="corridorSvg" class="corridor-svg" viewBox="0 0 ${D.image.width} ${D.image.height}" preserveAspectRatio="none"></svg><svg id="routeSvg" class="route-svg" viewBox="0 0 ${D.image.width} ${D.image.height}" preserveAspectRatio="none"></svg><div id="zoneLayer" class="map-layer zone-layer"></div><div id="roomLayer" class="map-layer"></div><div id="checkpointLayer" class="map-layer"></div><div id="positionLayer" class="map-layer"></div></div>`;
+const stage=$('mapStage'),img=$('floorImage'),zoneLayer=$('zoneLayer'),roomLayer=$('roomLayer'),checkpointLayer=$('checkpointLayer'),positionLayer=$('positionLayer'),routeSvg=$('routeSvg'),corridorSvg=$('corridorSvg');
 img.src=D.image.src;stage.style.width=D.image.width+'px';stage.style.height=D.image.height+'px';
 function applyTransform(){stage.style.transform=`translate3d(${state.tx}px,${state.ty}px,0) scale(${state.scale})`;}
 function fitBounds(bounds,animate=true){const [[y1,x1],[y2,x2]]=bounds,w=Math.max(10,x2-x1),h=Math.max(10,y2-y1),cw=mapEl.clientWidth||innerWidth,ch=mapEl.clientHeight||innerHeight;let s=Math.min(cw/w,ch/h)*.86;s=Math.max(.2,Math.min(4,s));const cx=(x1+x2)/2,cy=(y1+y2)/2;state.scale=s;state.tx=cw/2-cx*s;state.ty=ch/2-cy*s;stage.classList.toggle('animate-map',animate);applyTransform();setTimeout(()=>stage.classList.remove('animate-map'),350)}
@@ -51,7 +51,7 @@ function labelFor(sel){return !sel?'':sel.type==='room'?sel.value.id:sel.value.n
 function toast(s){const t=$('toast');t.textContent=s;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,3000)}
 function focusRoom(r){const p=posFor(r);if(p)flyTo(p,2.25);else{const v=floorView(r);if(v)fitBounds(v.bounds)}}
 function saveSurvey(){store.set('cn_survey',state.survey)}
-function allCheckpoints(){const merged=new Map();for(const c of D.checkpoints||[])merged.set(c.id,{...c,seed:true});for(const c of state.survey.checkpoints||[])merged.set(c.id,{...c,seed:false});return [...merged.values()]}
+function allCheckpoints(){const merged=new Map();for(const c of D.checkpoints||[])merged.set(c.id,{...c,seed:true});for(const r of D.rooms||[]){const p=posFor(r);if(p&&!merged.has('ROOM_'+r.id))merged.set('ROOM_'+r.id,{id:'ROOM_'+r.id,name:r.id+' doorway',type:'room',room:r.id,bldg:r.bldg,floor:r.floor,pos:p,verified:verified(r),source:'room-door'})}for(const c of state.survey.checkpoints||[])merged.set(c.id,{...c,seed:false});return [...merged.values()]}
 function checkpointBy(id){return allCheckpoints().find(c=>c.id===id)||null}
 function checkpointMatches(text){const q=norm(text);return allCheckpoints().map(c=>({c,score:[c.name,c.type,c.id,...(c.keywords||[])].map(norm).reduce((n,h)=>n+(h&&q.includes(h)?40:h&&h.includes(q)?25:0),0)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score)}
 function floorRooms(bldg,floor){return D.rooms.filter(r=>r.bldg===bldg&&r.floor===floor)}
@@ -73,8 +73,9 @@ function renderZones(){
    b.onclick=e=>{e.stopPropagation();openFloorZone(bldg,floor)};zoneLayer.appendChild(b)
  }
 }
+function renderCorridors(){if(!corridorSvg)return;const cps=allCheckpoints(),byId=new Map(cps.map(c=>[c.id,c]));let d='';for(const e of D.edges||[]){if(e.source!=='annotated-corridor')continue;const a=byId.get(e.from),b=byId.get(e.to);if(a?.pos&&b?.pos)d+='M '+a.pos[1]+' '+a.pos[0]+' L '+b.pos[1]+' '+b.pos[0]+' '}corridorSvg.innerHTML=d?'<path class="corridor-seed" d="'+d+'"/>':''}
 function renderRooms(){roomLayer.innerHTML='';for(const r of D.rooms){const p=posFor(r);if(!p)continue;const b=document.createElement('button');b.className='room-hit verified';b.style.left=p[1]+'px';b.style.top=p[0]+'px';b.title=r.id;b.setAttribute('aria-label','Precise room pin '+r.id);const scene=roomTourScene(r.id);b.innerHTML='<span></span><em>'+r.id+(scene?' · 360°':'')+'</em>';b.onclick=e=>{e.stopPropagation();if(scene?.exact)openTour(scene,r.id);else selectEntity({type:'room',value:r})};roomLayer.appendChild(b)}renderZones();updateAccuracy()}
-function renderCheckpoints(){checkpointLayer.innerHTML='';for(const c of allCheckpoints()){if(!c.pos||c.type==='room')continue;const b=document.createElement('button');b.className=`checkpoint-hit ${c.verified?'verified':''}`;b.style.left=c.pos[1]+'px';b.style.top=c.pos[0]+'px';b.title=c.name;b.setAttribute('aria-label',c.name);b.innerHTML=`<span>${checkpointIcon(c.type)}</span>`;b.onclick=e=>{e.stopPropagation();anchorAt(c)};checkpointLayer.appendChild(b)}}
+function renderCheckpoints(){checkpointLayer.innerHTML='';for(const c of allCheckpoints()){if(!c.pos||c.type==='room'||c.type==='corridor')continue;const b=document.createElement('button');b.className=`checkpoint-hit ${c.verified?'verified':''}`;b.style.left=c.pos[1]+'px';b.style.top=c.pos[0]+'px';b.title=c.name;b.setAttribute('aria-label',c.name);b.innerHTML=`<span>${checkpointIcon(c.type)}</span>`;b.onclick=e=>{e.stopPropagation();anchorAt(c)};checkpointLayer.appendChild(b)}}
 function checkpointIcon(type){return ({entrance:'↗',junction:'⌁',stairs:'⇅',lift:'↕',toilet:'WC',printer:'▣',water:'◌',landmark:'◉',room:'•'})[type]||'◉'}
 function updateAccuracy(){const rooms=D.rooms.filter(verified).length,anchors=allCheckpoints().filter(c=>c.pos&&c.verified).length,links=(state.survey.edges||[]).length;const roomPct=Math.round(rooms/D.rooms.length*100);$('accuracyText').textContent=rooms+' rooms · '+anchors+' anchors';$('accuracyBadge').dataset.level=roomPct>=70?'high':roomPct>=30?'mid':'low';if($('studioStats')){const a=typeof surveyAudit==='function'?surveyAudit():{isolated:0,unsafe:0,closed:0};$('studioStats').innerHTML='<b>'+rooms+'/'+D.rooms.length+'</b> precise room-door pins · <b>'+anchors+'</b> precise anchors · <b>'+links+'</b> custom surveyed links.<br><b>'+a.isolated+'</b> isolated mapped anchors · <b>'+a.unsafe+'</b> links without verified step-free status · <b>'+a.closed+'</b> closed links.<br>Navigation will not invent geometry for gaps in this survey.'}}
 
@@ -247,7 +248,8 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden&&state.came
 
 /* ---------- guidance ---------- */
 function calibrationMode(room){state.placing=room;closeSheets();toast('Tap the exact doorway for '+room.id);mapEl.classList.add('calibrating')}
-function allEdges(){return [...(D.edges||[]),...(state.survey.edges||[])]}
+function generatedConnectorEdges(){const cps=allCheckpoints(),corr=cps.filter(c=>c.type==='corridor'&&c.pos),out=[];for(const c of cps){if(!c.pos||c.type==='corridor')continue;let best=null,bd=Infinity;for(const n of corr){if(n.bldg!==c.bldg||n.floor!==c.floor)continue;const d=Math.hypot(n.pos[0]-c.pos[0],n.pos[1]-c.pos[1]);if(d<bd){bd=d;best=n}}if(best&&bd<=115)out.push({from:c.id,to:best.id,mode:c.type==='room'?'doorway':'corridor',access:'public',stepFree:null,source:'auto-snap-to-annotated-corridor',meters:null})}return out}
+function allEdges(){return [...(D.edges||[]),...(state.survey.edges||[]),...generatedConnectorEdges()]}
 function currentStartRef(){
  const cp=state.position?.checkpointId?checkpointBy(state.position.checkpointId):null;
  if(cp)return {kind:'checkpoint',checkpoint:cp,label:cp.name,room:cp.room?roomBy(cp.room):null};
@@ -489,7 +491,7 @@ document.querySelectorAll('.bottom button').forEach(b=>b.onclick=()=>{document.q
 /* ---------- startup / deep links ---------- */
 window.addEventListener('online',()=>$('offline').hidden=true);window.addEventListener('offline',()=>$('offline').hidden=false);$('offline').hidden=navigator.onLine;
 if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
-renderHome();renderRooms();renderCheckpoints();renderPosition();renderStudio();renderSuggestions();$('stepFreeToggle').checked=state.stepFree;$('voiceToggle').checked=state.voice;$('profileSelect').value=state.profile;$('hapticToggle').checked=state.haptics;$('autoZoomToggle').checked=state.autoZoom;$('strideInput').value=state.strideM.toFixed(2);renderResumeRoute();
+renderHome();renderRooms();renderCheckpoints();renderCorridors();renderPosition();renderStudio();renderSuggestions();$('stepFreeToggle').checked=state.stepFree;$('voiceToggle').checked=state.voice;$('profileSelect').value=state.profile;$('hapticToggle').checked=state.haptics;$('autoZoomToggle').checked=state.autoZoom;$('strideInput').value=state.strideM.toFixed(2);renderResumeRoute();
 const url=new URL(location.href),action=url.searchParams.get('action'),cpId=url.searchParams.get('cp'),fromId=url.searchParams.get('from'),toId=url.searchParams.get('to');
 setTimeout(()=>{
  if(img.complete)fitAll();
