@@ -116,16 +116,6 @@ const intentGroups=[
  {id:'careers',label:'I need careers help',keywords:['careers','career','university','apprenticeship','job','futures'],place:'CAREERS'}
 ];
 
-const checkpoints=[...annotatedCheckpoints,
- {id:'B007_DOOR',name:'Tech Support doorway',type:'room',room:'B007',bldg:'Brock',floor:'G',pos:[558,1397],verified:true,keywords:['tech support','b007','it support']},
- {id:'B014_DOOR',name:'Exams doorway',type:'room',room:'B014',bldg:'Brock',floor:'G',pos:[562,1526],verified:true,keywords:['exams','b014','exam office']},
- {id:'BROCK_QUAD_EXIT_TECH',name:'Doors from Tech Support to the quad',type:'entrance',bldg:'Brock',floor:'G',pos:null,verified:false,keywords:['quad doors','tech doors','outside']},
- {id:'BROCK_QUAD_LEFT',name:'Left turn in the quad',type:'junction',bldg:'Brock',floor:'G',pos:null,verified:false,keywords:['quad','outside','left in quad']},
- {id:'BROCK_LOCKER_DOORS',name:'Doors by the student lockers',type:'entrance',bldg:'Brock',floor:'G',pos:null,verified:false,keywords:['lockers','student lockers','locker doors']},
- {id:'BROCK_LOCKERS',name:'Student lockers',type:'landmark',bldg:'Brock',floor:'G',pos:null,verified:false,keywords:['lockers','student lockers']},
- {id:'BROCK_REFILL',name:'Refill / print room',type:'printer',bldg:'Brock',floor:'G',pos:null,verified:false,keywords:['refill','print room','printer','printing']},
- {id:'BROCK_EXAMS_TURN',name:'Final turn to Exams',type:'junction',bldg:'Brock',floor:'G',pos:null,verified:false,keywords:['exams turn','final turn']}
-];
 const annotatedSource=window.CAMPUS_ANNOTATED_NAV||null;
 const annotatedCheckpoints=[],annotatedEdges=[];
 if(annotatedSource){
@@ -137,6 +127,16 @@ if(annotatedSource){
  for(const t of annotatedSource.toilets||[]){const [id,y,x,bldg,floor]=t;annotatedCheckpoints.push({id,name:'Toilets',type:'toilet',bldg,floor,pos:[y,x],verified:true,source:'user-highlighted-toilet',keywords:['toilet','toilets','wc','loo']})}
  for(const l of annotatedSource.landmarks||[]){const [id,name,y,x,bldg,floor]=l;annotatedCheckpoints.push({id:'LANDMARK_'+id,name,type:'landmark',bldg,floor,pos:[y,x],verified:true,source:'user-labelled-landmark',keywords:[name.toLowerCase()]})}
 }
+const checkpoints=[...annotatedCheckpoints,
+ {id:'B007_DOOR',name:'Tech Support doorway',type:'room',room:'B007',bldg:'Brock',floor:'G',pos:[558,1397],verified:true,keywords:['tech support','b007','it support']},
+ {id:'B014_DOOR',name:'Exams doorway',type:'room',room:'B014',bldg:'Brock',floor:'G',pos:[562,1526],verified:true,keywords:['exams','b014','exam office']},
+ {id:'BROCK_QUAD_EXIT_TECH',name:'Doors from Tech Support to the quad',type:'entrance',bldg:'Brock',floor:'G',pos:null,verified:false,keywords:['quad doors','tech doors','outside']},
+ {id:'BROCK_QUAD_LEFT',name:'Left turn in the quad',type:'junction',bldg:'Brock',floor:'G',pos:null,verified:false,keywords:['quad','outside','left in quad']},
+ {id:'BROCK_LOCKER_DOORS',name:'Doors by the student lockers',type:'entrance',bldg:'Brock',floor:'G',pos:null,verified:false,keywords:['lockers','student lockers','locker doors']},
+ {id:'BROCK_LOCKERS',name:'Student lockers',type:'landmark',bldg:'Brock',floor:'G',pos:null,verified:false,keywords:['lockers','student lockers']},
+ {id:'BROCK_REFILL',name:'Refill / print room',type:'printer',bldg:'Brock',floor:'G',pos:null,verified:false,keywords:['refill','print room','printer','printing']},
+ {id:'BROCK_EXAMS_TURN',name:'Final turn to Exams',type:'junction',bldg:'Brock',floor:'G',pos:null,verified:false,keywords:['exams turn','final turn']}
+];
 const routeTemplates={
  'B007>B014':{
    name:'Tech Support to Exams',audience:'student',precision:'landmark-verified',public:true,stepFree:null,
