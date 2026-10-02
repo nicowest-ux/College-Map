@@ -26,4 +26,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: room-label-audit
-          path: audit/room-label-positions.json
+          path: |
+          audit/room-label-positions.json
+          floorplan.png
