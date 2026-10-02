@@ -74,5 +74,17 @@ jobs:
           "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom "http://127.0.0.1:8000/?from=B007&place=TOILETS" > /tmp/toilet-dom.html
           grep -q 'Toilets' /tmp/toilet-dom.html || { echo "FAIL toilet target"; exit 1; }
           grep -Eq 'Surveyed turn-by-turn|Interactive corridor guidance' /tmp/toilet-dom.html || { echo "FAIL toilet corridor route"; exit 1; }
+          "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom "http://127.0.0.1:8000/?from=C101&to=C109&guide=1" > /tmp/active-guide-dom.html
+          python - <<'PY'
+          import re
+          s=open('/tmp/active-guide-dom.html').read()
+          m=re.search(r'id="nextInstruction"[^>]*>(.*?)</div>',s,re.S)
+          assert m, 'active guidance instruction missing'
+          t=re.sub('<[^>]+>',' ',m.group(1))
+          assert 'Surveyed corridor' not in t, t
+          assert any(x in t for x in ['Turn ','Continue ','Keep ','Leave ','Arrive ']), t
+          assert 'follow signage' not in s.lower()
+          print('active instruction:', ' '.join(t.split()))
+          PY
           "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom "http://127.0.0.1:8000/?action=tour" > /tmp/tour-dom.html
           grep -q 'id="tourPickerSheet"' /tmp/tour-dom.html || { echo "FAIL tour picker"; exit 1; }
