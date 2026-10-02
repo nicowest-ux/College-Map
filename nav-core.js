@@ -35,6 +35,7 @@
     const profile=options.profile||'student';
     if(edge.access==='staff'&&profile!=='staff')return false;
     if(edge.access==='student'&&profile==='visitor')return false;
+    if(options.stepFree===true&&edge.mode==='stairs')return false;
     if(options.stepFree===true&&edge.stepFree!==true)return false;
     return true;
   }
