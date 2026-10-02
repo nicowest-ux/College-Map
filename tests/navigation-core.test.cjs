@@ -48,3 +48,6 @@ const modeSteps=N.pathSteps(modePath,cps);
 assert.strictEqual(modeSteps[0].mode,'lift');
 assert.strictEqual(modeSteps[0].meters,6);
 console.log('camera-guide heading helpers passed');
+
+const badStairs=N.shortestPath({checkpoints:cps,edges:[{from:'A',to:'B',weight:1,stepFree:true,mode:'stairs'}],startIds:['A'],endIds:['B'],options:{stepFree:true}});
+assert.strictEqual(badStairs,null,'stairs must never pass step-free routing even if mislabelled stepFree');
