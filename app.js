@@ -19,8 +19,8 @@ for(const key of [...state.saved]){if(!String(key).includes(':')){state.saved.de
 
 /* ---------- zero-dependency image map engine ---------- */
 const mapEl=$('map');
-mapEl.innerHTML=`<div id="mapStage" class="map-stage"><img id="floorImage" draggable="false" alt="Campus floor plans"><svg id="routeSvg" class="route-svg" viewBox="0 0 ${D.image.width} ${D.image.height}" preserveAspectRatio="none"></svg><div id="roomLayer" class="map-layer"></div><div id="checkpointLayer" class="map-layer"></div><div id="positionLayer" class="map-layer"></div></div>`;
-const stage=$('mapStage'),img=$('floorImage'),roomLayer=$('roomLayer'),checkpointLayer=$('checkpointLayer'),positionLayer=$('positionLayer'),routeSvg=$('routeSvg');
+mapEl.innerHTML=`<div id="mapStage" class="map-stage"><img id="floorImage" draggable="false" alt="Campus floor plans"><svg id="routeSvg" class="route-svg" viewBox="0 0 ${D.image.width} ${D.image.height}" preserveAspectRatio="none"></svg><div id="zoneLayer" class="map-layer zone-layer"></div><div id="roomLayer" class="map-layer"></div><div id="checkpointLayer" class="map-layer"></div><div id="positionLayer" class="map-layer"></div></div>`;
+const stage=$('mapStage'),img=$('floorImage'),zoneLayer=$('zoneLayer'),roomLayer=$('roomLayer'),checkpointLayer=$('checkpointLayer'),positionLayer=$('positionLayer'),routeSvg=$('routeSvg');
 img.src=D.image.src;stage.style.width=D.image.width+'px';stage.style.height=D.image.height+'px';
 function applyTransform(){stage.style.transform=`translate3d(${state.tx}px,${state.ty}px,0) scale(${state.scale})`;}
 function fitBounds(bounds,animate=true){const [[y1,x1],[y2,x2]]=bounds,w=Math.max(10,x2-x1),h=Math.max(10,y2-y1),cw=mapEl.clientWidth||innerWidth,ch=mapEl.clientHeight||innerHeight;let s=Math.min(cw/w,ch/h)*.86;s=Math.max(.2,Math.min(4,s));const cx=(x1+x2)/2,cy=(y1+y2)/2;state.scale=s;state.tx=cw/2-cx*s;state.ty=ch/2-cy*s;stage.classList.toggle('animate-map',animate);applyTransform();setTimeout(()=>stage.classList.remove('animate-map'),350)}
@@ -52,7 +52,26 @@ function saveSurvey(){store.set('cn_survey',state.survey)}
 function allCheckpoints(){const merged=new Map();for(const c of D.checkpoints||[])merged.set(c.id,{...c,seed:true});for(const c of state.survey.checkpoints||[])merged.set(c.id,{...c,seed:false});return [...merged.values()]}
 function checkpointBy(id){return allCheckpoints().find(c=>c.id===id)||null}
 function checkpointMatches(text){const q=norm(text);return allCheckpoints().map(c=>({c,score:[c.name,c.type,c.id,...(c.keywords||[])].map(norm).reduce((n,h)=>n+(h&&q.includes(h)?40:h&&h.includes(q)?25:0),0)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score)}
-function renderRooms(){roomLayer.innerHTML='';for(const r of D.rooms){const p=posFor(r);if(!p)continue;const b=document.createElement('button');b.className='room-hit verified';b.style.left=p[1]+'px';b.style.top=p[0]+'px';b.title=r.id;b.setAttribute('aria-label',`Room ${r.id}`);b.innerHTML='<span></span>';b.onclick=e=>{e.stopPropagation();selectEntity({type:'room',value:r})};roomLayer.appendChild(b)}updateAccuracy()}
+function floorRooms(bldg,floor){return D.rooms.filter(r=>r.bldg===bldg&&r.floor===floor)}
+function openFloorZone(bldg,floor){
+ const view=D.floorViews[bldg+'|'+floor];if(view)fitBounds(view.bounds);
+ const rooms=floorRooms(bldg,floor),precise=rooms.filter(verified).length;
+ $('floorZoneTitle').textContent=bldg+' · '+floorLabel(floor);
+ $('floorZoneMeta').textContent=rooms.length+' rooms · '+precise+' precise doorway pin'+(precise===1?'':'s')+'. Unverified rooms remain searchable without pretending their doorway is exact.';
+ $('floorZoneRooms').innerHTML=rooms.map(r=>resultMarkup({type:'room',value:r})).join('');
+ bindResults($('floorZoneRooms'));openSheet('floorZoneSheet')
+}
+function renderZones(){
+ zoneLayer.innerHTML='';
+ for(const [key,view] of Object.entries(D.floorViews||{})){
+   const [bldg,floor]=key.split('|'),rooms=floorRooms(bldg,floor);if(!rooms.length)continue;
+   const ys=view.bounds.map(p=>p[0]),xs=view.bounds.map(p=>p[1]),y=(Math.min(...ys)+Math.max(...ys))/2,x=(Math.min(...xs)+Math.max(...xs))/2,precise=rooms.filter(verified).length;
+   const b=document.createElement('button');b.className='zone-hit'+(precise?' has-precise':'');b.style.left=x+'px';b.style.top=y+'px';b.setAttribute('aria-label',bldg+' '+floorLabel(floor)+', '+rooms.length+' rooms');
+   b.innerHTML='<b>'+bldg+'</b><small>'+floorLabel(floor).replace(' Floor','')+' · '+rooms.length+' rooms</small>';
+   b.onclick=e=>{e.stopPropagation();openFloorZone(bldg,floor)};zoneLayer.appendChild(b)
+ }
+}
+function renderRooms(){roomLayer.innerHTML='';for(const r of D.rooms){const p=posFor(r);if(!p)continue;const b=document.createElement('button');b.className='room-hit verified';b.style.left=p[1]+'px';b.style.top=p[0]+'px';b.title=r.id;b.setAttribute('aria-label','Precise room pin '+r.id);b.innerHTML='<span></span><em>'+r.id+'</em>';b.onclick=e=>{e.stopPropagation();selectEntity({type:'room',value:r})};roomLayer.appendChild(b)}renderZones();updateAccuracy()}
 function renderCheckpoints(){checkpointLayer.innerHTML='';for(const c of allCheckpoints()){if(!c.pos||c.type==='room')continue;const b=document.createElement('button');b.className=`checkpoint-hit ${c.verified?'verified':''}`;b.style.left=c.pos[1]+'px';b.style.top=c.pos[0]+'px';b.title=c.name;b.setAttribute('aria-label',c.name);b.innerHTML=`<span>${checkpointIcon(c.type)}</span>`;b.onclick=e=>{e.stopPropagation();anchorAt(c)};checkpointLayer.appendChild(b)}}
 function checkpointIcon(type){return ({entrance:'↗',junction:'⌁',stairs:'⇅',lift:'↕',toilet:'WC',printer:'▣',water:'◌',landmark:'◉',room:'•'})[type]||'◉'}
 function updateAccuracy(){const rooms=D.rooms.filter(verified).length,anchors=allCheckpoints().filter(c=>c.pos&&c.verified).length,links=(state.survey.edges||[]).length;const roomPct=Math.round(rooms/D.rooms.length*100);$('accuracyText').textContent=rooms+' rooms · '+anchors+' anchors';$('accuracyBadge').dataset.level=roomPct>=70?'high':roomPct>=30?'mid':'low';if($('studioStats')){const a=typeof surveyAudit==='function'?surveyAudit():{isolated:0,unsafe:0,closed:0};$('studioStats').innerHTML='<b>'+rooms+'/'+D.rooms.length+'</b> precise room-door pins · <b>'+anchors+'</b> precise anchors · <b>'+links+'</b> custom surveyed links.<br><b>'+a.isolated+'</b> isolated mapped anchors · <b>'+a.unsafe+'</b> links without verified step-free status · <b>'+a.closed+'</b> closed links.<br>Navigation will not invent geometry for gaps in this survey.'}}
@@ -63,13 +82,43 @@ function closeSheets(hideBackdrop=true){document.querySelectorAll('.sheet').forE
 $('backdrop').onclick=()=>closeSheets();document.querySelectorAll('.close').forEach(b=>b.onclick=()=>closeSheets());
 
 /* ---------- destination detail ---------- */
-function selectEntity(sel){state.selected=sel;const r=targetRoom(sel);if(r)focusRoom(r);const isRoom=sel.type==='room',v=sel.value;
+function placeCheckpoint(place){return allCheckpoints().find(c=>c.place===place.id)||null}
+function selectEntity(sel){
+ state.selected=sel;const r=targetRoom(sel),cp=sel.type==='place'?placeCheckpoint(sel.value):null;if(r)focusRoom(r);else if(cp?.pos)flyTo(cp.pos,2.3);
+ const isRoom=sel.type==='room',v=sel.value;
  $('roomKind').textContent=isRoom?'ROOM':'DESTINATION';$('roomName').textContent=isRoom?v.id:v.name;
- if(isRoom){$('roomMeta').textContent=`${v.bldg} · ${floorLabel(v.floor)}${(v.aliases||[])[0]?' · '+v.aliases[0]:''}`;$('destinationDescription').textContent='';$('roomAccuracy').textContent=verified(v)?'✓ Precise room-door pin verified':'Correct building and floor are known; the exact doorway is not yet survey-verified.';$('roomAccuracy').className='room-accuracy '+(verified(v)?'good':'warn');$('calibrateRoom').hidden=false;}
- else {const linked=r?`Linked to ${r.id} · ${r.bldg} · ${floorLabel(r.floor)}`:'Current campus destination; exact map anchor still being surveyed.';$('roomMeta').textContent=`${v.kind} · ${linked}`;$('destinationDescription').textContent=v.description||'';$('roomAccuracy').textContent=r&&verified(r)?'✓ Destination linked to a verified room pin':'Use Explore for a real visual look while exact indoor anchors are being surveyed.';$('roomAccuracy').className='room-accuracy '+(r&&verified(r)?'good':'warn');$('calibrateRoom').hidden=true;}
- const key=entityKey(sel);$('saveRoom').textContent=state.saved.has(key)?'★ Saved':'☆ Save';$('goHere').textContent=r?'Start guidance':'Explore in 360°';openSheet('roomSheet')}
-$('setHere').onclick=()=>{const r=targetRoom(state.selected);if(!r){toast('Choose a precise room as your starting point');return}const p=posFor(r);state.start=r;if(p){const cp=allCheckpoints().find(c=>c.room===r.id&&c.pos);setPosition(p,'verified room',r.id,cp?.id||null,100);closeSheets()}else toast('This room needs an exact pin before it can be a precise start')};
-$('goHere').onclick=()=>{const r=targetRoom(state.selected);if(r)routeTo(r);else openTour()};$('lookAround').onclick=openTour;
+ if(isRoom){
+   $('roomMeta').textContent=v.bldg+' · '+floorLabel(v.floor)+((v.aliases||[])[0]?' · '+v.aliases[0]:'');
+   $('destinationDescription').textContent='';
+   $('roomAccuracy').textContent=verified(v)?'✓ Precise room-door pin verified':'Building and floor are known. The exact doorway is not yet survey-verified.';
+   $('roomAccuracy').className='room-accuracy '+(verified(v)?'good':'warn');$('calibrateRoom').hidden=false;$('setHere').hidden=false;$('setHere').textContent='I’m at this room';
+ } else {
+   const linked=r?'Linked to '+r.id+' · '+r.bldg+' · '+floorLabel(r.floor):cp?'Linked to surveyed '+cp.type+' · '+(cp.bldg||'Campus'):'Chosen campus destination; exact navigation anchor still being surveyed.';
+   $('roomMeta').textContent=v.kind+' · '+linked;$('destinationDescription').textContent=v.description||'';
+   $('roomAccuracy').textContent=(r&&verified(r))||cp?.verified?'✓ Destination has a precise navigation anchor':'You can choose this as your destination now. Guidance will clearly show when the final indoor anchor is not yet surveyed.';
+   $('roomAccuracy').className='room-accuracy '+(((r&&verified(r))||cp?.verified)?'good':'warn');$('calibrateRoom').hidden=true;
+   $('setHere').hidden=!(r&&verified(r))&&!cp?.verified;$('setHere').textContent='I’m at this place';
+ }
+ const key=entityKey(sel);$('saveRoom').textContent=state.saved.has(key)?'★ Saved':'☆ Save';
+ $('goHere').textContent='Take me there';$('goHere').classList.add('primary');openSheet('roomSheet')
+}
+$('setHere').onclick=()=>{
+ const r=targetRoom(state.selected),cp=state.selected?.type==='place'?placeCheckpoint(state.selected.value):null;
+ if(cp?.pos){anchorAt(cp);closeSheets();return}
+ if(!r){toast('This destination does not have a precise start anchor yet');return}
+ const p=posFor(r);state.start=r;if(p){const rcp=allCheckpoints().find(c=>c.room===r.id&&c.pos);setPosition(p,'verified room',r.id,rcp?.id||null,100);closeSheets()}else toast('This room needs an exact pin before it can be a precise start')
+};
+function routeToPlace(place){
+ const r=place.room?roomBy(place.room):null,cp=placeCheckpoint(place);
+ if(r){state.destinationPlace=place;routeTo(r);return}
+ if(cp){state.destinationPlace=place;routeToCheckpoint(cp);return}
+ state.destinationPlace=place;state.pendingCheckpoint=null;state.pendingDestination=null;
+ const ref=currentStartRef();
+ state.routeDraft={a:ref?.room||null,b:null,fromLabel:ref?.label||'Starting point not needed yet',targetLabel:place.name,steps:[],precision:'none',note:'You have selected '+place.name+' as your destination, but its exact indoor anchor has not yet been surveyed. Use the 360° visual guide while this location is being mapped.',blocked:true,blockedReason:'coverage',place};
+ renderPlanner();$('plannerVisual').hidden=false;openSheet('plannerSheet')
+}
+$('goHere').onclick=()=>{if(!state.selected)return;if(state.selected.type==='room')routeTo(state.selected.value);else routeToPlace(state.selected.value)};
+$('lookAround').onclick=openTour;
 $('saveRoom').onclick=()=>{const key=entityKey(state.selected);if(!key)return;state.saved.has(key)?state.saved.delete(key):state.saved.add(key);store.set('cn_saved',[...state.saved]);selectEntity(state.selected)};
 $('calibrateRoom').onclick=()=>{if(state.selected?.type==='room')calibrationMode(state.selected.value)};
 
@@ -202,7 +251,7 @@ function renderPlanner(){
  const q=routeQuality(r);$('plannerQuality').dataset.level=q.level;$('plannerQuality').innerHTML='<b>'+q.label+'</b><span>'+q.detail+'</span>';
  $('plannerSummary').textContent=plannerSummary(r);
  const warning=$('plannerWarning');warning.hidden=!r.note&&!r.blocked;warning.textContent=r.note||'';
- const begin=$('plannerBegin');begin.disabled=!!r.blocked&&r.blockedReason!=='start';begin.textContent=r.blocked?(r.blockedReason==='start'?'Choose starting point':'Route not verified'):'Start guidance';
+ const begin=$('plannerBegin');begin.disabled=!!r.blocked&&r.blockedReason!=='start';begin.textContent=r.blocked?(r.blockedReason==='start'?'Choose starting point':r.blockedReason==='coverage'?'Precise route not yet surveyed':'Route not verified'):'Start guidance';if($('plannerVisual'))$('plannerVisual').hidden=!(r.place&&r.blockedReason==='coverage');
  $('plannerGeneral').hidden=!(r.blocked&&r.blockedReason==='stepfree');
  $('plannerSwap').hidden=!(r.a&&r.b);
 }
@@ -281,7 +330,7 @@ function openLostRecovery(){
 $('plannerChangeStart').onclick=()=>{closeSheets();openSearch('start')};
 $('plannerChangeDest').onclick=()=>{closeSheets();openSearch('destination')};
 $('plannerSwap').onclick=()=>{const r=state.routeDraft;if(!r?.a||!r?.b)return;const old=r.a;state.start=r.b;const p=posFor(r.b),cp=allCheckpoints().find(c=>c.room===r.b.id&&c.pos);if(p)setPosition(p,'room start: '+r.b.id,r.b.id,cp?.id||null,100);else{state.position={pos:null,source:'room start: '+r.b.id,roomId:r.b.id,checkpointId:null,at:Date.now()};store.set('cn_position',state.position);renderPosition()}state.destination=old;openRoutePlanner(old)};
-$('plannerBegin').onclick=()=>{if(state.routeDraft?.blockedReason==='start'){openPosition();return}beginRoute(state.routeDraft)};
+$('plannerBegin').onclick=()=>{if(state.routeDraft?.blockedReason==='start'){openPosition();return}beginRoute(state.routeDraft)};$('plannerVisual').onclick=openTour;
 $('plannerGeneral').onclick=()=>{if(state.pendingCheckpoint)openCheckpointPlanner(state.pendingCheckpoint,{ignoreStepFree:true});else if(state.destination)openRoutePlanner(state.destination,{ignoreStepFree:true})};
 $('nextStep').onclick=nextRouteStep;$('prevStep').onclick=()=>{if(state.route&&state.routeIndex>0){state.routeIndex--;renderRoute();focusCurrentLeg()}};
 $('speakStep').onclick=speak;$('endRoute').onclick=endRoute;$('visualCheck').onclick=openTour;$('recalibrate').onclick=openPosition;$('guideLensClose').onclick=()=>$('guideLens').hidden=true;$('tourBackToGuide').onclick=()=>{closeTour();$('routeCard').hidden=false};
