@@ -1,0 +1,20 @@
+name: Route coverage audit
+on:
+  push:
+    branches: [route-coverage-audit-v7]
+    paths:
+      - "tests/route-coverage.cjs"
+      - "data.js"
+      - "annotated-nav.js"
+      - "room-guide-hints.js"
+      - "nav-core.js"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run route coverage audit
+        run: node tests/route-coverage.cjs
