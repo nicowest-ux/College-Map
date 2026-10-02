@@ -104,3 +104,31 @@ body.navigating .map-vignette{background:linear-gradient(180deg,rgba(9,14,28,.18
 
 /* user-annotated corridor network */
 .corridor-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:1}.corridor-seed{fill:none;stroke:#0078d7;stroke-width:5;stroke-linecap:round;stroke-linejoin:round;opacity:.58;vector-effect:non-scaling-stroke}.route-svg{z-index:3}
+
+
+/* clean map marker hierarchy — annotation geometry is routing-only */
+.corridor-svg,.corridor-seed{display:none!important}
+.zone-layer{display:none!important}
+.map-room-marker{display:none!important}
+.map-room-marker em{display:none!important}
+#map[data-zoom="detail"] .map-room-marker{display:block!important}
+.map-room-marker.important{display:block!important;width:18px!important;height:18px!important;z-index:30!important}
+.map-room-marker.important span{width:12px!important;height:12px!important;box-shadow:0 0 0 4px rgba(255,255,255,.96),0 3px 10px rgba(16,24,40,.28)!important}
+.map-room-marker.important em{display:block!important;left:16px!important;top:-8px!important;font-size:8px!important;border-radius:7px!important;padding:3px 5px!important;background:rgba(17,24,39,.94)!important}
+#map[data-zoom="detail"] .map-room-marker:not(.important){opacity:.62!important;transform:translate(-50%,-50%) scale(.76)!important}
+#map[data-zoom="detail"] .map-room-marker:not(.important) em{display:none!important}
+
+.checkpoint-hit{display:none!important;z-index:18!important;width:24px!important;height:24px!important;border-radius:50%!important;box-shadow:0 2px 8px rgba(16,24,40,.22)!important}
+.checkpoint-hit span{font-size:8px!important;font-weight:900!important;line-height:1!important}
+#map[data-zoom="mid"] .checkpoint-hit.facility,
+#map[data-zoom="detail"] .checkpoint-hit{display:grid!important}
+.checkpoint-hit.important{display:grid!important;z-index:32!important;width:30px!important;height:30px!important;box-shadow:0 0 0 4px rgba(255,255,255,.92),0 4px 12px rgba(16,24,40,.30)!important}
+.checkpoint-hit.type-landmark{background:rgba(255,255,255,.94)!important;border:1px solid rgba(105,65,198,.45)!important}
+.checkpoint-hit.type-toilet{background:#fff!important;border:2px solid #6941c6!important;color:#6941c6!important}
+.checkpoint-hit.type-lift{background:#eef6ff!important;border:2px solid #0b5fff!important;color:#0b5fff!important}
+.checkpoint-hit.type-stairs{background:#fff7e8!important;border:2px solid #a25d00!important;color:#7a4500!important}
+.checkpoint-hit.type-entrance{background:#eefbf3!important;border:2px solid #21845a!important;color:#17623f!important}
+.checkpoint-hit.type-printer,.checkpoint-hit.type-water{background:#f7f8fb!important;border:1px solid #98a2b3!important;color:#344054!important}
+
+body.navigating #roomLayer .map-room-marker:not(.important),
+body.navigating #checkpointLayer .checkpoint-hit:not(.important){display:none!important}
