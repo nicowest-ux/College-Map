@@ -1,1 +1,48 @@
-{"id":"./","name":"Campus Navigator","short_name":"CampusNav","description":"Verified indoor campus wayfinding with assisted live tracking","start_url":"./","scope":"./","display":"standalone","orientation":"any","background_color":"#eef3f9","theme_color":"#0b5fff","categories":["navigation","education","utilities"],"icons":[{"src":"icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},{"src":"icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}],"shortcuts":[{"name":"Find a room","url":"./?action=search"},{"name":"Navigation assistant","url":"./?action=assistant"}]}
+{
+  "id": "./",
+  "name": "Blackpool Sixth Campus Navigator",
+  "short_name": "Campus Navigator",
+  "description": "Indoor wayfinding, campus concierge and immersive visual guide for Blackpool Sixth.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#eef2f7",
+  "theme_color": "#101526",
+  "categories": [
+    "navigation",
+    "education",
+    "utilities"
+  ],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Find a destination",
+      "short_name": "Find",
+      "url": "./?action=search"
+    },
+    {
+      "name": "Ask the campus guide",
+      "short_name": "Guide",
+      "url": "./?action=assistant"
+    },
+    {
+      "name": "Explore in 360\u00b0",
+      "short_name": "Explore",
+      "url": "./?action=tour"
+    }
+  ]
+}
