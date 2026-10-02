@@ -107,4 +107,21 @@ for(const x of candidates.slice(0,40))console.log(
  ' -',x.dist.toFixed(1)+'px',x.a.id,'['+x.a.bldg+' '+x.a.floor+']',JSON.stringify(x.a.pos),
  '<->',x.b.id,'['+x.b.bldg+' '+x.b.floor+']',JSON.stringify(x.b.pos)
 );
+
+function hypotheticalEdges(limit){
+ const base=[...edges],components=new Map(component);
+ for(const x of candidates){if(x.dist>limit)break;base.push({from:x.a.id,to:x.b.id,mode:'corridor',access:'public',stepFree:true,source:'hypothetical-stitch',weight:Math.max(1,x.dist)})}
+ return base
+}
+function routeWithEdges(a,b,edgeSet,stepFree=false){
+ const startIds=roomNodeIds(a),endIds=roomNodeIds(b);if(!startIds.length||!endIds.length)return null;
+ return Core.shortestPath({checkpoints:cps,edges:edgeSet,startIds,endIds,options:{profile:'student',stepFree}})
+}
+console.log('\nHypothetical same-floor stitch impact:');
+for(const limit of [40,50,65,90,120,180]){
+ const es=hypotheticalEdges(limit);let reachN=0,pairN=0;
+ for(const x of reps)if(routeWithEdges(anchor,x.room,es,false))reachN++;
+ for(let i=0;i<reps.length;i++)for(let j=i+1;j<reps.length;j++)if(routeWithEdges(reps[i].room,reps[j].room,es,false))pairN++;
+ console.log(' - <= '+limit+'px: anchor floors '+reachN+'/'+reps.length+'; floor pairs '+pairN+'/'+pairs);
+}
 process.exitCode=0;
