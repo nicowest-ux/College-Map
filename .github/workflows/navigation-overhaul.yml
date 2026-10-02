@@ -81,6 +81,10 @@ jobs:
           "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom "http://127.0.0.1:8000/?from=B007&to=W101&guide=1" > /tmp/w101-guide-dom.html
           grep -q 'id="routeCard"' /tmp/w101-guide-dom.html || { echo "FAIL W101 active guidance"; exit 1; }
           grep -q 'Take the stairs to the First Floor' /tmp/w101-guide-dom.html || { echo "FAIL W101 active stair instruction"; exit 1; }
+          "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom "http://127.0.0.1:8000/?from=B007&to=W101&stepfree=1" > /tmp/w101-stepfree-dom.html
+          grep -Eq 'Surveyed turn-by-turn|Interactive corridor guidance' /tmp/w101-stepfree-dom.html || { echo "FAIL W101 step-free route"; exit 1; }
+          grep -q 'Take the lift to the First Floor' /tmp/w101-stepfree-dom.html || { echo "FAIL W101 lift instruction"; exit 1; }
+          ! grep -q 'Take the stairs to the First Floor' /tmp/w101-stepfree-dom.html || { echo "FAIL stairs used in step-free route"; exit 1; }
           "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom "http://127.0.0.1:8000/?from=C101&to=C109&guide=1" > /tmp/active-guide-dom.html
           python - <<'PY'
           import re
