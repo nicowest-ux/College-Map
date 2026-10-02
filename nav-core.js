@@ -130,9 +130,60 @@
     });
   }
 
+  function compactPathSteps(path,checkpoints=[],options={}){
+    if(!path||!path.segments?.length)return [];
+    const byId=new Map(checkpoints.map(c=>[c.id,c]));
+    const keep=[];
+    for(let i=0;i<path.segments.length;i++){
+      const seg=path.segments[i],from=byId.get(seg.from),to=byId.get(seg.to);
+      const prev=i?byId.get(path.segments[i-1].from):null;
+      const derived=prev&&from&&to?turn(prev.pos,from.pos,to.pos):{action:'continue',icon:'↑',delta:0,label:'Continue straight'};
+      const edgeMode=seg.edge.mode||'corridor';
+      const toType=to?.type||'';
+      const explicit=!!seg.edge.instruction;
+      const special=edgeMode==='stairs'||edgeMode==='lift'||edgeMode==='outside'||edgeMode==='doorway'||(toType&&toType!=='corridor'&&toType!=='room-section');
+      const significantTurn=Math.abs(derived.delta||0)>=28;
+      const last=i===path.segments.length-1;
+      const first=i===0;
+      if(first||last||explicit||special||significantTurn)keep.push({i,seg,from,to,derived,last});
+    }
+    const out=[];
+    for(let k=0;k<keep.length;k++){
+      const item=keep[k],{i,seg,from,to,derived,last}=item;
+      const mode=seg.edge.mode||'corridor';
+      let action=last?'arrive':derived.action,icon=last?'✓':derived.icon,text='';
+      if(seg.edge.instruction)text=seg.edge.instruction;
+      else if(mode==='lift'){action='lift';icon='↕';text='Take the lift'+(to?.floor?' to '+(options.floorLabel?options.floorLabel(to.floor):to.floor):'')+'.'}
+      else if(mode==='stairs'){action='stairs';icon='⇅';text='Take the stairs'+(to?.floor?' to '+(options.floorLabel?options.floorLabel(to.floor):to.floor):'')+'.'}
+      else if(mode==='outside'){text=(derived.label||'Continue')+' along the outdoor route.'}
+      else if(last){text='Arrive at '+(options.targetLabel||to?.name||seg.to)+'.'}
+      else {
+        const destName=to&&to.type!=='corridor'&&to.type!=='room-section'&&to.name?to.name:null;
+        text=(derived.label||'Continue straight')+(destName?' toward '+destName:' along the corridor')+'.';
+      }
+      const fromIndex=k?keep[k-1].i+1:0;
+      let meters=0,seconds=0,hasMeters=true,hasSeconds=true;
+      for(let j=fromIndex;j<=i;j++){
+        const e=path.segments[j]?.edge||{};
+        if(Number.isFinite(+e.meters))meters+=+e.meters;else hasMeters=false;
+        if(Number.isFinite(+e.seconds))seconds+=+e.seconds;else hasSeconds=false;
+      }
+      out.push({
+        action,icon,text,anchor:seg.to,fromAnchor:path.segments[fromIndex]?.from||seg.from,
+        confirm:to&&to.type!=='corridor'&&to.type!=='room-section'?('Look for '+to.name+'.'):'',
+        access:seg.edge.access||'public',stepFree:seg.edge.stepFree===true,closed:seg.edge.closed===true,
+        seconds:hasSeconds?seconds:null,meters:hasMeters?meters:null,mode,geometry:!!(from?.pos&&to?.pos),
+        nextAnchor:null,segmentIndex:i,fromSegmentIndex:fromIndex
+      });
+    }
+    for(let i=0;i<out.length-1;i++)out[i].nextAnchor=out[i+1].anchor;
+    return out;
+  }
+
   function routeQuality(route){
     if(!route)return {level:'none',label:'No route',detail:'No route could be built.'};
-    if(route.precision==='survey graph')return {level:'high',label:'Surveyed turn-by-turn',detail:'Every leg follows surveyed anchor links.'};
+    if(route.precision==='survey graph')return {level:'high',label:'Surveyed turn-by-turn',detail:'Every leg follows mapped corridor links.'};
+    if(route.precision==='guided room section')return {level:'good',label:'Interactive corridor guidance',detail:'The journey follows the mapped corridor network; the final doorway is an approximate room-section target until that door is surveyed.'};
     if(route.precision==='verified landmark route')return {level:'good',label:'Landmark guided',detail:'The route is confirmed by named landmarks; some anchor coordinates are still being surveyed.'};
     if(route.precision==='floor-level guidance')return {level:'limited',label:'Floor guidance',detail:'The destination floor is known, but corridor geometry is not fully surveyed.'};
     return {level:'limited',label:'Orientation guidance',detail:'Building/floor information is known, but a complete turn-by-turn graph is not yet surveyed.'};
@@ -155,5 +206,5 @@
     return Math.round(clamp(Math.min(base,Number(positionConfidence)||base),0,100));
   }
 
-  return {clamp,normAngle,angleDelta,distance,bearing,turn,edgeAllowed,shortestPath,pathSteps,routeQuality,pathMetrics,routeConfidence};
+  return {clamp,normAngle,angleDelta,distance,bearing,turn,edgeAllowed,shortestPath,pathSteps,compactPathSteps,routeQuality,pathMetrics,routeConfidence};
 });
