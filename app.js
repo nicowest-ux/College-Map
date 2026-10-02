@@ -459,17 +459,44 @@ function computeCheckpointRoute(cp,options={}){
  if(graph){graph.targetCheckpoint=cp;return graph}
  return {a:ref.room||null,b:null,fromLabel:ref.label,targetLabel:cp.name,steps:[],precision:'none',note:'I cannot yet connect your confirmed position to this destination through the mapped corridor network. Re-anchor to a nearby room or landmark and I’ll recalculate.',blocked:true,blockedReason:state.stepFree&&!ignoreStepFree?'stepfree':'coverage',targetCheckpoint:cp}
 }
+function routeJourney(route){
+ if(!route?.path?.nodes?.length)return[];
+ const cps=allCheckpoints(),byId=new Map(cps.map(c=>[c.id,c])),nodes=route.path.nodes,segs=route.path.segments||[],out=[];
+ const addFloor=cp=>{if(!cp)return;const key=(cp.bldg||'Campus')+'|'+(cp.floor||'');const last=[...out].reverse().find(x=>x.type==='floor');if(last?.key===key)return;out.push({type:'floor',key,bldg:cp.bldg||'Campus',floor:cp.floor||'',label:(cp.bldg||'Campus')+' · '+(cp.floor?floorLabel(cp.floor):'Campus')})};
+ addFloor(byId.get(nodes[0]));
+ for(const seg of segs){
+   const from=byId.get(seg.from),to=byId.get(seg.to),mode=seg.edge?.mode||'corridor',floorChange=!!(from&&to&&from.floor!==to.floor);
+   if(mode==='stairs'||mode==='lift'||floorChange){
+     out.push({type:'transition',mode:mode==='lift'?'lift':mode==='stairs'?'stairs':'level',label:mode==='lift'?'Lift':mode==='stairs'?'Stairs':'Change floor',fromFloor:from?.floor,toFloor:to?.floor});
+     addFloor(to)
+   }else if(from&&to&&from.bldg!==to.bldg)addFloor(to)
+ }
+ if(route.b)out.push({type:'destination',label:route.b.id,sub:route.estimatedDestination?'Room section':'Destination'});
+ else if(route.targetLabel)out.push({type:'destination',label:route.targetLabel,sub:'Destination'});
+ return out
+}
+function journeyMarkup(route){
+ const items=routeJourney(route);if(!items.length)return'';
+ return items.map((x,i)=>{
+   const arrow=i?'<span class="journey-arrow">›</span>':'';
+   if(x.type==='transition')return arrow+'<span class="journey-chip transition"><span>'+(x.mode==='lift'?'↕':'⇅')+'</span><b>'+x.label+'</b></span>';
+   if(x.type==='destination')return arrow+'<span class="journey-chip"><b>'+x.label+'</b><small>'+x.sub+'</small></span>';
+   return arrow+'<span class="journey-chip"><b>'+x.bldg+'</b><small>'+(x.floor?floorLabel(x.floor):'Campus')+'</small></span>'
+ }).join('')
+}
 function plannerSummary(route){
- const q=routeQuality(route),count=route.steps?.length||0;
- let s=q.label+(count?' · '+count+' step'+(count===1?'':'s'):'');
- if(route.precision==='survey graph'||route.precision==='guided room section')s+=' · corridor route';
- return s
+ const count=route.steps?.length||0,transitions=routeJourney(route).filter(x=>x.type==='transition');
+ let s=count?(count+' clear step'+(count===1?'':'s')):'';
+ if(transitions.length)s+=(s?' · ':'')+transitions.map(x=>x.label).join(' + ');
+ if(route.estimatedDestination)s+=(s?' · ':'')+'final doorway approximate';
+ return s||'Route details'
 }
 function renderPlanner(){
  const r=state.routeDraft;if(!r)return;
- $('plannerFrom').textContent=r.fromLabel||'Set starting point';$('plannerTo').textContent=r.targetLabel||'Destination';
+ $('plannerFrom').textContent=r.fromLabel||'Set starting point';$('plannerTo').textContent=r.place?.name||r.targetLabel||'Destination';
  const q=routeQuality(r);$('plannerQuality').dataset.level=q.level;$('plannerQuality').innerHTML='<b>'+q.label+'</b><span>'+q.detail+'</span>';
  $('plannerSummary').textContent=plannerSummary(r);
+ const j=journeyMarkup(r);$('plannerJourney').hidden=!j;$('plannerJourneySteps').innerHTML=j;
  const warning=$('plannerWarning');warning.hidden=!r.note&&!r.blocked;warning.textContent=r.note||'';
  const begin=$('plannerBegin');begin.disabled=!!r.blocked&&!['start','coverage'].includes(r.blockedReason);begin.textContent=r.blocked?(r.blockedReason==='start'?'Choose starting point':r.blockedReason==='coverage'?'Re-anchor & recalculate':'Route not verified'):'Start turn-by-turn';if($('plannerVisual'))$('plannerVisual').hidden=!r.tourScene;
  $('plannerGeneral').hidden=!(r.blocked&&r.blockedReason==='stepfree');
@@ -498,20 +525,39 @@ function finishRoute(){
  if(!state.route)return;const dest=state.route.b,target=state.route.targetCheckpoint;state.routeIndex=Math.max(0,state.route.steps.length-1);buzz([30,40,70]);toast('Destination reached');endRoute();if(dest)setTimeout(()=>selectEntity({type:'room',value:dest}),180);else if(target?.pos&&state.autoZoom)setTimeout(()=>flyTo(target.pos,2.4),180)
 }
 function endRoute(){if(state.cameraActive)stopCameraGuide();state.route=null;routeSvg.innerHTML='';renderRooms();renderCheckpoints();$('routeCard').hidden=true;$('guideLens').hidden=true;document.body.classList.remove('navigating');$('context').textContent='Blackpool Sixth · Find your way';renderTourGuide();store.set('cn_active_route',null);state.activeRoute=null;renderResumeRoute()}
+function routeFloorKey(cp){return cp?(cp.bldg||'')+'|'+(cp.floor||''):''}
 function focusRoute(){
  routeSvg.innerHTML='';if(!state.route)return;
- const endpoint=[];
- const pathCps=allCheckpoints(),pathStart=state.route.path?routeEndpointCheckpoint(state.route.path,pathCps,'start'):null,pathEnd=state.route.path?routeEndpointCheckpoint(state.route.path,pathCps,'end'):null;
+ const endpoint=[],cps=allCheckpoints(),byId=new Map(cps.map(c=>[c.id,c])),path=state.route.path;
+ const pathStart=path?routeEndpointCheckpoint(path,cps,'start'):null,pathEnd=path?routeEndpointCheckpoint(path,cps,'end'):null;
  const pa=state.route.a?(posFor(state.route.a)||pathStart?.pos):state.position?.pos,pb=state.route.b?(posFor(state.route.b)||pathEnd?.pos):state.route.targetCheckpoint?.pos;
  if(pa)endpoint.push('<circle class="route-endpoint start" cx="'+pa[1]+'" cy="'+pa[0]+'" r="16"/><text class="route-endpoint-label" x="'+pa[1]+'" y="'+(pa[0]+5)+'">S</text>');
  if(pb)endpoint.push('<circle class="route-endpoint end" cx="'+pb[1]+'" cy="'+pb[0]+'" r="16"/><text class="route-endpoint-label" x="'+pb[1]+'" y="'+(pb[0]+5)+'">D</text>');
- let routeMarkup='';
- if(['survey graph','guided room section'].includes(state.route.precision)&&state.route.path){const cps=allCheckpoints(),byId=new Map(cps.map(c=>[c.id,c])),points=state.route.path.nodes.map(id=>byId.get(id)?.pos).filter(Boolean);if(points.length===state.route.path.nodes.length&&points.length>1){const d=points.map((p,i)=>(i?'L ':'M ')+p[1]+' '+p[0]).join(' ');routeMarkup='<path class="route-line surveyed" d="'+d+'"/>';const ys=points.map(p=>p[0]),xs=points.map(p=>p[1]);if(state.autoZoom)fitBounds([[Math.min(...ys)-90,Math.min(...xs)-90],[Math.max(...ys)+90,Math.max(...xs)+90]])}}
- routeSvg.innerHTML=routeMarkup+endpoint.join('');
- if(!routeMarkup){if(pa&&pb&&state.autoZoom)fitBounds([[Math.min(pa[0],pb[0])-110,Math.min(pa[1],pb[1])-110],[Math.max(pa[0],pb[0])+110,Math.max(pa[1],pb[1])+110]]);else if(pb&&state.autoZoom)flyTo(pb,2.2)}
+ const paths=[],transitions=[];
+ if(['survey graph','guided room section'].includes(state.route.precision)&&path?.segments?.length){
+   let pts=[],lastTo=null;
+   const flush=()=>{if(pts.length>1){const d=pts.map((p,i)=>(i?'L ':'M ')+p[1]+' '+p[0]).join(' ');paths.push('<path class="route-line surveyed route-floor-segment" d="'+d+'"/>')}pts=[]};
+   for(const seg of path.segments){
+     const from=byId.get(seg.from),to=byId.get(seg.to),mode=seg.edge?.mode||'corridor',floorChange=!!(from&&to&&from.floor!==to.floor);
+     if(!from?.pos||!to?.pos)continue;
+     if(!pts.length)pts.push(from.pos);
+     if(mode==='stairs'||mode==='lift'||floorChange){
+       flush();
+       const icon=mode==='lift'?'↕':'⇅';
+       transitions.push('<g class="route-transition"><circle class="route-transition-dot" cx="'+from.pos[1]+'" cy="'+from.pos[0]+'" r="12"/><text class="route-transition-label" x="'+from.pos[1]+'" y="'+from.pos[0]+'">'+icon+'</text></g>');
+       transitions.push('<g class="route-transition"><circle class="route-transition-dot" cx="'+to.pos[1]+'" cy="'+to.pos[0]+'" r="12"/><text class="route-transition-label" x="'+to.pos[1]+'" y="'+to.pos[0]+'">'+icon+'</text></g>');
+       pts=[to.pos];lastTo=to;continue
+     }
+     pts.push(to.pos);lastTo=to
+   }
+   flush()
+ }
+ routeSvg.innerHTML=paths.join('')+transitions.join('')+endpoint.join('');
+ if(!paths.length){if(pa&&pb&&state.autoZoom)fitBounds([[Math.min(pa[0],pb[0])-110,Math.min(pa[1],pb[1])-110],[Math.max(pa[0],pb[0])+110,Math.max(pa[1],pb[1])+110]]);else if(pb&&state.autoZoom)flyTo(pb,2.2)}
 }
 function focusCurrentLeg(){
- if(!state.route||!state.autoZoom)return;const s=currentRouteStep(),from=checkpointBy(s?.fromAnchor),to=checkpointBy(s?.anchor);
+ if(!state.route||!state.autoZoom)return;const s=currentRouteStep(),from=checkpointBy(s?.fromAnchor),to=checkpointBy(s?.anchor),mode=s?.mode||'corridor';
+ if(from?.pos&&to?.pos&&from.floor!==to.floor){flyTo(from.pos,2.35);return}
  if(from?.pos&&to?.pos){fitBounds([[Math.min(from.pos[0],to.pos[0])-75,Math.min(from.pos[1],to.pos[1])-75],[Math.max(from.pos[0],to.pos[0])+75,Math.max(from.pos[1],to.pos[1])+75]])}
  else if(to?.pos)flyTo(to.pos,2.35);else if(state.position?.pos)flyTo(state.position.pos,2.15);else if(state.route.b)focusRoom(state.route.b)
 }
@@ -520,6 +566,7 @@ function renderRoute(){
  const r=state.route;if(!r)return;const step=currentRouteStep();if(!step)return;const pct=((state.routeIndex+1)/r.steps.length)*100,q=routeQuality(r),confidence=Core.routeConfidence(r,state.confidence);
  $('routeEyebrow').textContent=q.label.toUpperCase();const shownTarget=r.place?.name||state.destinationPlace?.name||r.targetLabel;$('routeTitle').textContent=(r.fromLabel||'Start')+' → '+shownTarget;$('routeStatus').textContent='Step '+(state.routeIndex+1)+' of '+r.steps.length+' · '+q.label;
  $('routeTrust').dataset.level=q.level;$('routeTrust').innerHTML='<b>'+q.label+'</b><span>'+q.detail+(r.note?' '+r.note:'')+'</span>';
+ const fc=$('routeFloorContext'),fcp=checkpointBy(step.fromAnchor),tcp=checkpointBy(step.anchor),floorChange=!!(fcp&&tcp&&fcp.floor!==tcp.floor)||(step.mode==='stairs'||step.mode==='lift');fc.classList.toggle('transition',floorChange);fc.innerHTML=floorChange?'<b>'+(step.mode==='lift'?'↕ Lift':'⇅ Stairs')+'</b> '+(fcp?.floor?floorLabel(fcp.floor):'')+' → '+(tcp?.floor?floorLabel(tcp.floor):''):'<b>'+(fcp?.bldg||tcp?.bldg||'Campus')+'</b> · '+(fcp?.floor?floorLabel(fcp.floor):tcp?.floor?floorLabel(tcp.floor):'');
  $('nextInstruction').innerHTML='<span class="instruction-icon">'+(step.icon||'↑')+'</span><span>'+step.text+'</span>';
  const next=r.steps[state.routeIndex+1];$('routeNextPreview').hidden=!next;$('routeNextPreview').textContent=next?'Next: '+next.text:'';
  $('routeSteps').innerHTML=r.steps.map((s,i)=>'<li class="'+(i===state.routeIndex?'current':i<state.routeIndex?'done':'')+'"><b>'+(s.icon||'•')+'</b> '+s.text+'</li>').join('');$('routeProgress').style.width=pct+'%';
