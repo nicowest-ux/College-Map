@@ -128,6 +128,7 @@ const routeTemplates={
    ]
  }
 };
+const edges=[];
 const restrictions=[
  {from:'B007',to:'B014',type:'staff-only',description:'The direct internal corridor between the Tech Support and Exams side is staff-only for students.'}
 ];
@@ -142,6 +143,6 @@ const surveyTypes=[
  {id:'landmark',label:'Landmark',icon:'◉'}
 ];
 
-window.CAMPUS_V6={image:{width:2560,height:1527,src:'floorplan.png',sourceDate:'September 2017'},floorViews,rooms,specialRoutes,routeTemplates,checkpoints,restrictions,surveyTypes,departments:dep,places,intentGroups,tourUrl};
+window.CAMPUS_V6={image:{width:2560,height:1527,src:'floorplan.png',sourceDate:'September 2017'},floorViews,rooms,specialRoutes,routeTemplates,checkpoints,edges,restrictions,surveyTypes,departments:dep,places,intentGroups,tourUrl};
 window.CAMPUS_V5=window.CAMPUS_V6;
 })();
