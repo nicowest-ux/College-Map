@@ -1,4 +1,4 @@
-const CACHE='campus-navigator-v6-nav3-20261002';
+const CACHE='campus-navigator-v6-camera-20261002';
 const CORE=['./','./index.html','./styles.css','./nav-core.js','./data.js','./app.js','./manifest.json','./floorplan.png','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE)));self.skipWaiting();});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim();});
