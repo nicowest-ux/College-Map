@@ -210,9 +210,9 @@ function openPlacePlanner(place,cp,options={}){
 }
 function routeToPlace(place){
  const r=place.room?roomBy(place.room):null;
- if(r){state.destinationPlace=place;state.pendingPlace=place;routeTo(r);return}
- if(place.id==='SCIENCE'){const sr=roomBy('M011')||roomBy('M009');if(sr){state.destinationPlace=place;state.pendingPlace=place;routeTo(sr);return}}
- if(place.id==='SPORTS'){const sr=roomBy('S001');if(sr){state.destinationPlace=place;state.pendingPlace=place;routeTo(sr);return}}
+ if(r){state.destinationPlace=place;state.pendingPlace=place;routeTo(r,{keepPlace:true});return}
+ if(place.id==='SCIENCE'){const sr=roomBy('M011')||roomBy('M009');if(sr){state.destinationPlace=place;state.pendingPlace=place;routeTo(sr,{keepPlace:true});return}}
+ if(place.id==='SPORTS'){const sr=roomBy('S001');if(sr){state.destinationPlace=place;state.pendingPlace=place;routeTo(sr,{keepPlace:true});return}}
  const candidates=placeCandidates(place),cp=bestReachableCheckpoint(candidates);
  openPlacePlanner(place,cp)
 }
@@ -452,7 +452,7 @@ function openRoutePlanner(dest,options={}){
 function openCheckpointPlanner(cp,options={}){
  state.pendingCheckpoint=cp;state.pendingDestination=null;state.routeDraft=computeCheckpointRoute(cp,{ignoreStepFree:!!options.ignoreStepFree});state.draftIgnoreStepFree=!!options.ignoreStepFree;renderPlanner();openSheet('plannerSheet')
 }
-function routeTo(dest){state.destination=dest;state.pendingDestination=dest;renderRooms();renderCheckpoints();openRoutePlanner(dest)}
+function routeTo(dest,options={}){if(!options.keepPlace){state.pendingPlace=null;state.destinationPlace=null}state.destination=dest;state.pendingDestination=dest;renderRooms();renderCheckpoints();openRoutePlanner(dest)}
 function routeToCheckpoint(cp){state.pendingCheckpoint=cp;renderCheckpoints();openCheckpointPlanner(cp)}
 function buzz(pattern=18){if(state.haptics&&navigator.vibrate)try{navigator.vibrate(pattern)}catch{}}
 function saveActiveRoute(){
@@ -563,7 +563,7 @@ function assistant(msg){
  const seenText=low.replace(/^(i can see|i see|i am by|i'm by|near)\s+/,'');const seen=checkpointMatches(seenText)[0];
  if(seen&&/i can see|i see|i am by|i'm by|near/.test(low)){anchorAt(seen.c);addFeed('Great — I’ve re-anchored you to '+seen.c.name+(seen.c.pos?' precisely on the map':' as a route landmark')+'.','bot');return}
  const facilityType=/toilet|loo|bathroom|wc/.test(low)?'toilet':/printer|print|refill/.test(low)?'printer':/water|fountain|bottle/.test(low)?'water':/lift|elevator/.test(low)?'lift':null;
- if(facilityType&&/nearest|closest|where/.test(low)){const cp=nearestFacility(facilityType);if(cp){addFeed('The nearest surveyed '+facilityType+' anchor is '+cp.name+'. I’ll plan from your current confirmed point — I will not move your location to the destination.','bot');routeToCheckpoint(cp)}else addFeed('I know you need a '+facilityType+', but there is no precise surveyed '+facilityType+' anchor near your current confirmed position yet. Use the 360° view or local signage rather than me inventing a location.','bot');return}
+ if(facilityType&&/nearest|closest|where/.test(low)){const cp=nearestFacility(facilityType);if(cp){addFeed('The nearest surveyed '+facilityType+' anchor is '+cp.name+'. I’ll plan from your current confirmed point — I will not move your location to the destination.','bot');routeToCheckpoint(cp)}else addFeed('I know you need a '+facilityType+', but there is no precise surveyed '+facilityType+' anchor near your current confirmed position yet. Use a confirmed room or landmark to re-anchor and I’ll calculate a route from there.','bot');return}
  let m=low.match(/(?:i(?:'m| am) at|i am in|start(?:ing)? at|from)\s+([a-z]\d{3}[a-z]?)/i);if(m){const r=roomBy(m[1]);if(r){state.start=r;const p=posFor(r),cp=allCheckpoints().find(c=>c.room===r.id&&c.pos);if(p)setPosition(p,'room start: '+r.id,r.id,cp?.id||null,100);else{state.position={pos:null,source:'room start: '+r.id,roomId:r.id,checkpointId:null,at:Date.now()};store.set('cn_position',state.position)}addFeed('Got it — '+r.id+' in '+r.bldg+', '+floorLabel(r.floor)+' is your start.'+(p?' Your position is anchored to its verified pin.':' Its exact doorway still needs survey verification.'),'bot');if(state.destination)openRoutePlanner(state.destination);return}}
  const code=(text.match(/\b[A-Z]\d{3}[A-Z]?\b/i)||[])[0];if(code){const r=roomBy(code);if(r){const wantsRoute=/take|go|directions|route|guide|to\b/.test(low);addFeed(r.id+' is in '+r.bldg+', '+floorLabel(r.floor)+'. '+(verified(r)?'Its doorway pin is verified.':'The correct building/floor are known; I will not invent an exact doorway.'),'bot');if(wantsRoute)routeTo(r);else selectEntity({type:'room',value:r});return}}
  const it=bestIntent(text);if(it){resolveIntent(it);return}const p=bestPlace(text);if(p){const r=p.room?roomBy(p.room):null;addFeed(p.name+': '+p.description+(r?' It is linked to '+r.id+'.':' Use Explore for a real visual look while its exact indoor anchor is being surveyed.'),'bot');if(/take|go|directions|route|guide/.test(low)&&r)routeTo(r);else selectEntity({type:'place',value:p});return}
