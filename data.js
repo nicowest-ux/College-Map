@@ -116,7 +116,7 @@ const intentGroups=[
  {id:'careers',label:'I need careers help',keywords:['careers','career','university','apprenticeship','job','futures'],place:'CAREERS'}
 ];
 
-const checkpoints=[
+const checkpoints=[...annotatedCheckpoints,
  {id:'B007_DOOR',name:'Tech Support doorway',type:'room',room:'B007',bldg:'Brock',floor:'G',pos:[558,1397],verified:true,keywords:['tech support','b007','it support']},
  {id:'B014_DOOR',name:'Exams doorway',type:'room',room:'B014',bldg:'Brock',floor:'G',pos:[562,1526],verified:true,keywords:['exams','b014','exam office']},
  {id:'BROCK_QUAD_EXIT_TECH',name:'Doors from Tech Support to the quad',type:'entrance',bldg:'Brock',floor:'G',pos:null,verified:false,keywords:['quad doors','tech doors','outside']},
@@ -126,6 +126,17 @@ const checkpoints=[
  {id:'BROCK_REFILL',name:'Refill / print room',type:'printer',bldg:'Brock',floor:'G',pos:null,verified:false,keywords:['refill','print room','printer','printing']},
  {id:'BROCK_EXAMS_TURN',name:'Final turn to Exams',type:'junction',bldg:'Brock',floor:'G',pos:null,verified:false,keywords:['exams turn','final turn']}
 ];
+const annotatedSource=window.CAMPUS_ANNOTATED_NAV||null;
+const annotatedCheckpoints=[],annotatedEdges=[];
+if(annotatedSource){
+ for(const [key,g] of Object.entries(annotatedSource.floors||{})){
+  const [bldg,floor]=key.split('|');
+  (g.p||[]).forEach((pos,i)=>annotatedCheckpoints.push({id:'ANN_'+key.replace(/[^A-Za-z0-9]+/g,'_')+'_'+i,name:'Surveyed corridor',type:'corridor',bldg,floor,pos,verified:true,source:'annotated-corridor'}));
+  (g.e||[]).forEach(([a,b])=>annotatedEdges.push({from:'ANN_'+key.replace(/[^A-Za-z0-9]+/g,'_')+'_'+a,to:'ANN_'+key.replace(/[^A-Za-z0-9]+/g,'_')+'_'+b,mode:'corridor',access:'public',stepFree:null,source:'annotated-corridor'}));
+ }
+ for(const t of annotatedSource.toilets||[]){const [id,y,x,bldg,floor]=t;annotatedCheckpoints.push({id,name:'Toilets',type:'toilet',bldg,floor,pos:[y,x],verified:true,source:'user-highlighted-toilet',keywords:['toilet','toilets','wc','loo']})}
+ for(const l of annotatedSource.landmarks||[]){const [id,name,y,x,bldg,floor]=l;annotatedCheckpoints.push({id:'LANDMARK_'+id,name,type:'landmark',bldg,floor,pos:[y,x],verified:true,source:'user-labelled-landmark',keywords:[name.toLowerCase()]})}
+}
 const routeTemplates={
  'B007>B014':{
    name:'Tech Support to Exams',audience:'student',precision:'landmark-verified',public:true,stepFree:null,
@@ -155,7 +166,7 @@ const routeTemplates={
    ]
  }
 };
-const edges=[];
+const edges=[...annotatedEdges];
 const restrictions=[
  {from:'B007',to:'B014',type:'staff-only',description:'The direct internal corridor between the Tech Support and Exams side is staff-only for students.'}
 ];
@@ -170,6 +181,6 @@ const surveyTypes=[
  {id:'landmark',label:'Landmark',icon:'◉'}
 ];
 
-window.CAMPUS_V6={image:{width:2560,height:1527,src:'floorplan.png',sourceDate:'September 2017'},floorViews,rooms,specialRoutes,routeTemplates,checkpoints,edges,restrictions,surveyTypes,departments:dep,places,intentGroups,tourUrl,tourScenes,roomTourScenes,tourMedia};
+window.CAMPUS_V6={image:{width:2560,height:1527,src:'floorplan.png',sourceDate:'September 2017'},floorViews,rooms,specialRoutes,routeTemplates,checkpoints,edges,restrictions,surveyTypes,departments:dep,places,intentGroups,tourUrl,tourScenes,roomTourScenes,tourMedia,annotatedSource};
 window.CAMPUS_V5=window.CAMPUS_V6;
 })();
