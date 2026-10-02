@@ -1,0 +1,36 @@
+name: Navigation overhaul checks
+on:
+  push:
+    branches: [navigation-overhaul-v6]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax check JavaScript
+        run: |
+          node --check nav-core.js
+          node --check data.js
+          node --check app.js
+      - name: Navigation core tests
+        run: node tests/navigation-core.test.cjs
+      - name: Validate self-contained build
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text()
+          assert 'id="plannerSheet"' in s
+          assert 'id="routeTrust"' in s
+          assert 'CampusNavCore' in s
+          assert 'v6 navigation experience overhaul' in s
+          assert 'Heading assist' in s
+          scripts=re.findall(r'<script>(.*?)</script>',s,re.S)
+          Path('/tmp/scripts').mkdir(exist_ok=True)
+          for i,code in enumerate(scripts):
+              Path(f'/tmp/scripts/{i}.js').write_text(code)
+          print('inline scripts:',len(scripts))
+          PY
+          for f in /tmp/scripts/*.js; do node --check "$f"; done
