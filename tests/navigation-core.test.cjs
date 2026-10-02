@@ -69,5 +69,5 @@ const compact=N.compactPathSteps(turnPath,turnCps,{targetLabel:'B999'});
 assert.ok(compact.length<turnPath.segments.length,'straight corridor nodes should be compressed');
 assert.ok(compact.some(s=>s.action==='right'),'meaningful corridor turn should remain');
 assert.ok(!compact.some(s=>/Surveyed corridor/.test(s.text)),'guidance must not expose internal corridor-node names');
-assert.strictEqual(N.routeQuality({precision:'guided room section'}).label,'Interactive corridor guidance');
+assert.strictEqual(N.routeQuality({precision:'guided room section'}).label,'Turn-by-turn route ready');
 console.log('interactive corridor guidance tests passed');
