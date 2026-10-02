@@ -85,8 +85,8 @@ console.log('\nFloor-pair connectivity:',ok+'/'+pairs,'general;',sf+'/'+pairs,'s
 const corridor=(D.checkpoints||[]).filter(x=>x.type==='corridor'&&x.pos);
 const corridorIds=new Set(corridor.map(x=>x.id));
 const adj=new Map(corridor.map(x=>[x.id,new Set()]));
-for(const e of D.edges||[]){
- if(corridorIds.has(e.from)&&corridorIds.has(e.to)){adj.get(e.from).add(e.to);adj.get(e.to).add(e.from)}
+for(const e of edges){
+ if(corridorIds.has(e.from)&&corridorIds.has(e.to)){adj.get(e.from).add(e.to);if(!e.oneWay)adj.get(e.to).add(e.from)}
 }
 const component=new Map();let ci=0;
 for(const n of corridor){
@@ -102,7 +102,7 @@ for(let i=0;i<endNodes.length;i++)for(let j=i+1;j<endNodes.length;j++){
  const dist=Core.distance(a.pos,b.pos);if(dist<=180)candidates.push({a,b,dist});
 }
 candidates.sort((x,y)=>x.dist-y.dist);
-console.log('\nNearest disconnected corridor-end candidates (diagnostic only):');
+console.log('\nNearest disconnected corridor-end candidates AFTER runtime stitching (diagnostic only):');
 for(const x of candidates.slice(0,40))console.log(
  ' -',x.dist.toFixed(1)+'px',x.a.id,'['+x.a.bldg+' '+x.a.floor+']',JSON.stringify(x.a.pos),
  '<->',x.b.id,'['+x.b.bldg+' '+x.b.floor+']',JSON.stringify(x.b.pos)
