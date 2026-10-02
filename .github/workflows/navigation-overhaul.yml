@@ -1,7 +1,7 @@
 name: Navigation overhaul checks
 on:
   push:
-    branches: [main, navigation-overhaul-v6, camera-guide-v6]
+    branches: [main, navigation-overhaul-v6, camera-guide-v6, annotated-navigation-seed]
 permissions:
   contents: read
 jobs:
@@ -12,6 +12,7 @@ jobs:
       - name: Syntax check JavaScript
         run: |
           node --check nav-core.js
+          node --check annotated-nav.js
           node --check data.js
           node --check app.js
       - name: Navigation core tests
@@ -34,6 +35,8 @@ jobs:
           assert 'tourSceneUrl' in s
           assert 'getUserMedia' in s
           assert 'media-name=' in s
+          assert 'corridorSvg' in s
+          assert 'CAMPUS_ANNOTATED_NAV' in s
           scripts=re.findall(r'<script>(.*?)</script>',s,re.S)
           Path('/tmp/scripts').mkdir(exist_ok=True)
           for i,code in enumerate(scripts):
