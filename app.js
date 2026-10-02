@@ -432,7 +432,7 @@ function computeCheckpointRoute(cp,options={}){
 function plannerSummary(route){
  const q=routeQuality(route),count=route.steps?.length||0;
  let s=q.label+(count?' · '+count+' step'+(count===1?'':'s'):'');
- if(route.precision==='survey graph')s+=' · access rules checked';
+ if(route.precision==='survey graph'||route.precision==='guided room section')s+=' · corridor route';
  return s
 }
 function renderPlanner(){
@@ -441,7 +441,7 @@ function renderPlanner(){
  const q=routeQuality(r);$('plannerQuality').dataset.level=q.level;$('plannerQuality').innerHTML='<b>'+q.label+'</b><span>'+q.detail+'</span>';
  $('plannerSummary').textContent=plannerSummary(r);
  const warning=$('plannerWarning');warning.hidden=!r.note&&!r.blocked;warning.textContent=r.note||'';
- const begin=$('plannerBegin');begin.disabled=!!r.blocked&&r.blockedReason!=='start';begin.textContent=r.blocked?(r.blockedReason==='start'?'Choose starting point':r.blockedReason==='coverage'?'Precise route not yet surveyed':'Route not verified'):'Start guidance';if($('plannerVisual'))$('plannerVisual').hidden=!r.tourScene;
+ const begin=$('plannerBegin');begin.disabled=!!r.blocked&&r.blockedReason!=='start';begin.textContent=r.blocked?(r.blockedReason==='start'?'Choose starting point':r.blockedReason==='coverage'?'Route connection needed':'Route not verified'):'Start turn-by-turn';if($('plannerVisual'))$('plannerVisual').hidden=!r.tourScene;
  $('plannerGeneral').hidden=!(r.blocked&&r.blockedReason==='stepfree');
  $('plannerSwap').hidden=!(r.a&&r.b);
 }
@@ -476,7 +476,7 @@ function focusRoute(){
  if(pa)endpoint.push('<circle class="route-endpoint start" cx="'+pa[1]+'" cy="'+pa[0]+'" r="16"/><text class="route-endpoint-label" x="'+pa[1]+'" y="'+(pa[0]+5)+'">S</text>');
  if(pb)endpoint.push('<circle class="route-endpoint end" cx="'+pb[1]+'" cy="'+pb[0]+'" r="16"/><text class="route-endpoint-label" x="'+pb[1]+'" y="'+(pb[0]+5)+'">D</text>');
  let routeMarkup='';
- if(state.route.precision==='survey graph'&&state.route.path){const cps=allCheckpoints(),byId=new Map(cps.map(c=>[c.id,c])),points=state.route.path.nodes.map(id=>byId.get(id)?.pos).filter(Boolean);if(points.length===state.route.path.nodes.length&&points.length>1){const d=points.map((p,i)=>(i?'L ':'M ')+p[1]+' '+p[0]).join(' ');routeMarkup='<path class="route-line surveyed" d="'+d+'"/>';const ys=points.map(p=>p[0]),xs=points.map(p=>p[1]);if(state.autoZoom)fitBounds([[Math.min(...ys)-90,Math.min(...xs)-90],[Math.max(...ys)+90,Math.max(...xs)+90]])}}
+ if(['survey graph','guided room section'].includes(state.route.precision)&&state.route.path){const cps=allCheckpoints(),byId=new Map(cps.map(c=>[c.id,c])),points=state.route.path.nodes.map(id=>byId.get(id)?.pos).filter(Boolean);if(points.length===state.route.path.nodes.length&&points.length>1){const d=points.map((p,i)=>(i?'L ':'M ')+p[1]+' '+p[0]).join(' ');routeMarkup='<path class="route-line surveyed" d="'+d+'"/>';const ys=points.map(p=>p[0]),xs=points.map(p=>p[1]);if(state.autoZoom)fitBounds([[Math.min(...ys)-90,Math.min(...xs)-90],[Math.max(...ys)+90,Math.max(...xs)+90]])}}
  routeSvg.innerHTML=routeMarkup+endpoint.join('');
  if(!routeMarkup){if(pa&&pb&&state.autoZoom)fitBounds([[Math.min(pa[0],pb[0])-110,Math.min(pa[1],pb[1])-110],[Math.max(pa[0],pb[0])+110,Math.max(pa[1],pb[1])+110]]);else if(pb&&state.autoZoom)flyTo(pb,2.2)}
 }
