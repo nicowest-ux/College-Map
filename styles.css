@@ -78,3 +78,26 @@ body.navigating .map-vignette{background:linear-gradient(180deg,rgba(9,14,28,.18
 
 /* destination action hierarchy */
 .destination-actions .destination-go{grid-column:1/-1;min-height:52px;font-size:15px;font-weight:900}.destination-actions #setHere[hidden]{display:none!important}
+
+
+/* camera guidance + scene-specific 360 */
+.camera-guide{position:fixed;inset:0;z-index:3000;background:#05070b;color:#fff;overflow:hidden}
+.camera-guide[hidden]{display:none!important}.camera-guide video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#05070b}
+.camera-scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(3,6,13,.58),rgba(3,6,13,.08) 28%,rgba(3,6,13,.05) 55%,rgba(3,6,13,.78));pointer-events:none}
+.camera-top{position:absolute;left:0;right:0;top:0;padding:max(calc(env(safe-area-inset-top,0px) + 12px),18px) 14px 10px;display:grid;grid-template-columns:46px 1fr 46px;gap:10px;align-items:start}
+.camera-round{width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.28);background:rgba(8,12,22,.58);backdrop-filter:blur(14px);color:#fff;font-size:24px;display:grid;place-items:center}
+.camera-title{display:grid;text-align:center;gap:2px;text-shadow:0 2px 9px rgba(0,0,0,.65)}.camera-title small{font-size:9px;letter-spacing:.16em;font-weight:900;color:#d8cbff}.camera-title b{font-size:15px}.camera-title span{font-size:10px;color:#e6e8ef}
+.camera-arrow-stage{position:absolute;left:0;right:0;top:23%;bottom:31%;display:flex;flex-direction:column;align-items:center;justify-content:center;perspective:700px;pointer-events:none}
+.camera-arrow-3d{width:118px;height:178px;position:relative;transform-style:preserve-3d;transform:rotateZ(var(--arrow-rotate,0deg)) rotateX(58deg) translateZ(24px);transition:transform .12s linear;filter:drop-shadow(0 18px 16px rgba(0,0,0,.35))}
+.camera-arrow-3d .arrow-shaft{position:absolute;width:42px;height:104px;left:38px;top:66px;border-radius:14px;background:linear-gradient(90deg,#7c4dff,#bda9ff 45%,#6f40dd);box-shadow:inset 0 0 0 2px rgba(255,255,255,.32)}
+.camera-arrow-3d .arrow-head{position:absolute;left:7px;top:0;width:0;height:0;border-left:52px solid transparent;border-right:52px solid transparent;border-bottom:82px solid #8e62ff;filter:drop-shadow(0 3px 0 rgba(255,255,255,.22))}
+.camera-turn-label{margin-top:4px;padding:8px 13px;border-radius:999px;background:rgba(8,12,22,.66);backdrop-filter:blur(10px);font-size:12px;font-weight:900;text-shadow:0 1px 4px #000}
+.camera-floor-cue{margin-top:9px;padding:9px 13px;border-radius:13px;background:#fff;color:#111827;font-size:12px;font-weight:900;box-shadow:0 10px 28px rgba(0,0,0,.28)}
+.camera-bottom{position:absolute;left:10px;right:10px;bottom:max(calc(env(safe-area-inset-bottom,0px) + 10px),14px);background:rgba(10,15,28,.78);border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(18px);border-radius:22px;padding:14px}
+.camera-step{display:grid;gap:4px}.camera-step small{font-size:9px;letter-spacing:.14em;color:#c7b6ff;font-weight:900}.camera-step b{font-size:16px;line-height:1.25}.camera-step span{font-size:11px;color:#d9dde7}
+.camera-actions{display:grid;grid-template-columns:1fr 1.25fr;gap:8px;margin-top:12px}.camera-actions button{min-height:44px;border-radius:13px;border:1px solid rgba(255,255,255,.23);background:rgba(255,255,255,.08);color:#fff;font-weight:850}.camera-actions .primary{background:#fff;color:#101828;border-color:#fff}
+.camera-precision{font-size:9px;line-height:1.4;color:#c8ceda;margin-top:9px}
+.tour-sheet header h2{margin-bottom:2px}.tour-scene-badge{font-size:9px;font-weight:850;border-radius:999px;padding:4px 7px;background:#eef4ff;color:#2349a3}
+.result .scene-note{font-size:9px;color:var(--muted)}
+.studio-grid select,.studio-grid button{min-width:0}
+@media(max-width:430px){.camera-arrow-3d{width:100px;height:150px;transform:rotateZ(var(--arrow-rotate,0deg)) rotateX(58deg) translateZ(18px)}.camera-arrow-3d .arrow-shaft{left:34px;width:34px;height:86px;top:59px}.camera-arrow-3d .arrow-head{left:4px;border-left-width:46px;border-right-width:46px;border-bottom-width:70px}.camera-actions{grid-template-columns:1fr}.camera-bottom{padding:12px}}
