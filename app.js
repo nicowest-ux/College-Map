@@ -350,7 +350,7 @@ function generatedConnectorEdges(){
   if(!c.pos||c.type==='corridor')continue;let best=null,bd=Infinity;
   for(const n of corr){if(n.bldg!==c.bldg||n.floor!==c.floor)continue;const d=Math.hypot(n.pos[0]-c.pos[0],n.pos[1]-c.pos[1]);if(d<bd){bd=d;best=n}}
   const limit=c.type==='room-section'?150:115;
-  if(best&&bd<=limit)out.push({from:c.id,to:best.id,mode:c.type==='room'?'doorway':'corridor',access:'public',stepFree:null,source:c.type==='room-section'?'room-section-snap':'auto-snap-to-annotated-corridor',meters:null})
+  if(best&&bd<=limit)out.push({from:c.id,to:best.id,mode:c.type==='room'?'doorway':'corridor',access:'public',stepFree:true,source:c.type==='room-section'?'room-section-snap':'auto-snap-to-annotated-corridor',meters:null})
  }
  return out
 }
@@ -362,16 +362,21 @@ function graphStitchEdges(){
    const a=ends[i],b=ends[j];if(a.floor!==b.floor)continue;
    const d=Math.hypot(a.pos[0]-b.pos[0],a.pos[1]-b.pos[1]);
    if(d>28)continue;const key=[a.id,b.id].sort().join('|');if(seen.has(key))continue;seen.add(key);
-   out.push({from:a.id,to:b.id,mode:'corridor',access:'public',stepFree:null,source:'annotated-component-stitch',weight:Math.max(1,d)})
+   out.push({from:a.id,to:b.id,mode:'corridor',access:'public',stepFree:true,source:'annotated-component-stitch',weight:Math.max(1,d)})
  }
  return out
 }
 function allEdges(){return [...(D.edges||[]),...(state.survey.edges||[]),...generatedConnectorEdges(),...graphStitchEdges()]}
+function routeLabelForRoom(r){
+ if(!r)return '';
+ const p=(D.places||[]).find(x=>x.room===r.id);
+ return p?(p.name+' ('+r.id+')'):r.id
+}
 function currentStartRef(){
  const cp=state.position?.checkpointId?checkpointBy(state.position.checkpointId):null;
- if(cp)return {kind:'checkpoint',checkpoint:cp,label:cp.name,room:cp.room?roomBy(cp.room):null};
+ if(cp){const rr=cp.room?roomBy(cp.room):null;return {kind:'checkpoint',checkpoint:cp,label:rr?routeLabelForRoom(rr):cp.name,room:rr}}
  const r=state.start||((state.position?.roomId&&roomBy(state.position.roomId))||null);
- if(r)return {kind:'room',room:r,label:r.id};
+ if(r)return {kind:'room',room:r,label:routeLabelForRoom(r)};
  return null
 }
 function startIdsForGraph(ref,cps){
@@ -513,7 +518,7 @@ function focusCurrentLeg(){
 function currentRouteStep(){return state.route?.steps?.[state.routeIndex]||null}
 function renderRoute(){
  const r=state.route;if(!r)return;const step=currentRouteStep();if(!step)return;const pct=((state.routeIndex+1)/r.steps.length)*100,q=routeQuality(r),confidence=Core.routeConfidence(r,state.confidence);
- $('routeEyebrow').textContent=q.label.toUpperCase();$('routeTitle').textContent=(r.fromLabel||'Start')+' → '+r.targetLabel;$('routeStatus').textContent='Step '+(state.routeIndex+1)+' of '+r.steps.length+' · '+q.label;
+ $('routeEyebrow').textContent=q.label.toUpperCase();const shownTarget=r.place?.name||state.destinationPlace?.name||r.targetLabel;$('routeTitle').textContent=(r.fromLabel||'Start')+' → '+shownTarget;$('routeStatus').textContent='Step '+(state.routeIndex+1)+' of '+r.steps.length+' · '+q.label;
  $('routeTrust').dataset.level=q.level;$('routeTrust').innerHTML='<b>'+q.label+'</b><span>'+q.detail+(r.note?' '+r.note:'')+'</span>';
  $('nextInstruction').innerHTML='<span class="instruction-icon">'+(step.icon||'↑')+'</span><span>'+step.text+'</span>';
  const next=r.steps[state.routeIndex+1];$('routeNextPreview').hidden=!next;$('routeNextPreview').textContent=next?'Next: '+next.text:'';
