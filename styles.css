@@ -75,3 +75,6 @@ body.navigating .map-vignette{background:linear-gradient(180deg,rgba(9,14,28,.18
 .room-hit{z-index:4}.room-hit em{position:absolute;left:13px;top:-7px;background:rgba(17,24,39,.9);color:#fff;border-radius:5px;padding:2px 4px;font-size:7px;font-style:normal;font-weight:850;white-space:nowrap;pointer-events:none}
 .floor-zone-sheet .results{max-height:min(58dvh,520px);overflow:auto}
 @media(max-width:600px){.zone-hit{min-width:78px;padding:6px 8px}.zone-hit b{font-size:10px}.zone-hit small{font-size:7px}.room-hit em{font-size:6px}}
+
+/* destination action hierarchy */
+.destination-actions .destination-go{grid-column:1/-1;min-height:52px;font-size:15px;font-weight:900}.destination-actions #setHere[hidden]{display:none!important}
