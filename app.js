@@ -33,7 +33,7 @@ mapEl.addEventListener('pointermove',e=>{if(!pointers.has(e.pointerId))return;co
 function pointerEnd(e){const was=dragStart,p=pointers.get(e.pointerId);pointers.delete(e.pointerId);if(pointers.size===0){if(was&&!was.moved&&p){const now=Date.now();if(now-lastTap<300){const [y,x]=screenToMap(e.clientX,e.clientY);flyTo([y,x],Math.min(4,state.scale*1.55));}else handleMapTap(e.clientX,e.clientY);lastTap=now;}dragStart=null;}else if(pointers.size===1){const p=[...pointers.values()][0];dragStart={x:p.x,y:p.y,tx:state.tx,ty:state.ty,moved:true};}}
 mapEl.addEventListener('pointerup',pointerEnd);mapEl.addEventListener('pointercancel',pointerEnd);
 mapEl.addEventListener('wheel',e=>{e.preventDefault();const [y,x]=screenToMap(e.clientX,e.clientY);const ns=Math.max(.2,Math.min(4,state.scale*(e.deltaY<0?1.15:.87)));const r=mapEl.getBoundingClientRect();state.scale=ns;state.tx=e.clientX-r.left-x*ns;state.ty=e.clientY-r.top-y*ns;applyTransform();},{passive:false});
-function handleMapTap(cx,cy){const [y,x]=screenToMap(cx,cy);if(state.placing){state.cal[state.placing.id]={pos:[+y.toFixed(1),+x.toFixed(1)],verifiedAt:new Date().toISOString()};store.set('cn_calibration',state.cal);const id=state.placing.id;state.placing=null;mapEl.classList.remove('calibrating');renderRooms();renderStudio();toast(`${id} doorway verified`);return}if(state.placingAnchor){const a={...state.placingAnchor,pos:[+y.toFixed(1),+x.toFixed(1)],verified:true,createdAt:new Date().toISOString()};state.survey.checkpoints.push(a);state.placingAnchor=null;mapEl.classList.remove('calibrating');saveSurvey();renderCheckpoints();renderStudio();toast(`${a.name} anchor saved`);return}if(state.tapPosition){state.tapPosition=false;mapEl.classList.remove('calibrating');setPosition([y,x],'manual map pin',null,null,88)}}
+function handleMapTap(cx,cy){const [y,x]=screenToMap(cx,cy);if(state.placing){state.cal[state.placing.id]={pos:[+y.toFixed(1),+x.toFixed(1)],verifiedAt:new Date().toISOString()};store.set('cn_calibration',state.cal);const id=state.placing.id;state.placing=null;mapEl.classList.remove('calibrating');renderRooms();renderStudio();toast(`${id} doorway verified`);return}if(state.placingAnchor){const a={...state.placingAnchor,pos:[+y.toFixed(1),+x.toFixed(1)],verified:true,createdAt:new Date().toISOString()};state.survey.checkpoints.push(a);state.placingAnchor=null;mapEl.classList.remove('calibrating');saveSurvey();renderCheckpoints();renderStudio();toast(`${a.name} anchor saved`);return}if(state.tapPosition){state.tapPosition=false;mapEl.classList.remove('calibrating');setPosition([y,x],'manual map pin',null,null,88);if(state.pendingCheckpoint)openCheckpointPlanner(state.pendingCheckpoint);else if(state.pendingDestination||state.destination)openRoutePlanner(state.pendingDestination||state.destination)}}
 img.addEventListener('load',()=>{fitAll();setTimeout(updateAccuracy,0)});window.addEventListener('resize',()=>{if(!state.selected&&!state.route)fitAll()});
 
 /* ---------- campus entities ---------- */
@@ -88,6 +88,7 @@ function selectSearchResult(sel){
    else {state.position={pos:null,source:'room start: '+r.id,roomId:r.id,checkpointId:null,at:Date.now()};store.set('cn_position',state.position);renderPosition()}
    state.searchMode='browse';closeSheets();
    if(mode==='reanchor'&&state.route){rerouteFromCurrent();return}
+   if(state.pendingCheckpoint){openCheckpointPlanner(state.pendingCheckpoint);return}
    if(state.pendingDestination||state.destination){openRoutePlanner(state.pendingDestination||state.destination);return}
    selectEntity({type:'room',value:r});return;
  }
@@ -129,7 +130,7 @@ function anchorAt(c){
  if(state.route)handleRouteAnchor(c);
  toast('Confirmed: '+c.name)
 }
-function openLandmarks(){const cps=allCheckpoints();let list=cps;if(state.route){const ids=new Set(state.route.steps.map(s=>s.anchor).filter(Boolean));list=[...cps.filter(c=>ids.has(c.id)),...cps.filter(c=>!ids.has(c.id))]}else if(state.start)list=cps.filter(c=>!c.bldg||c.bldg===state.start.bldg);$('landmarkResults').innerHTML=list.slice(0,36).map(c=>'<button class="result" data-cp="'+c.id+'"><span class="result-icon">'+checkpointIcon(c.type)+'</span><span class="result-copy"><b>'+c.name+'</b><small>'+(c.bldg||'Campus')+(c.floor?' · '+floorLabel(c.floor):'')+(c.pos?' · precise anchor':' · landmark')+'</small></span><em>'+(c.verified?'Precise':'Guide')+'</em></button>').join('')||'<p class="empty">No landmarks surveyed yet.</p>';$('landmarkResults').querySelectorAll('[data-cp]').forEach(b=>b.onclick=()=>{const c=checkpointBy(b.dataset.cp);if(c){anchorAt(c);closeSheets();if(!state.route&&(state.pendingDestination||state.destination))openRoutePlanner(state.pendingDestination||state.destination)}});openSheet('landmarkSheet')}
+function openLandmarks(){const cps=allCheckpoints();let list=cps;if(state.route){const ids=new Set(state.route.steps.map(s=>s.anchor).filter(Boolean));list=[...cps.filter(c=>ids.has(c.id)),...cps.filter(c=>!ids.has(c.id))]}else if(state.start)list=cps.filter(c=>!c.bldg||c.bldg===state.start.bldg);$('landmarkResults').innerHTML=list.slice(0,36).map(c=>'<button class="result" data-cp="'+c.id+'"><span class="result-icon">'+checkpointIcon(c.type)+'</span><span class="result-copy"><b>'+c.name+'</b><small>'+(c.bldg||'Campus')+(c.floor?' · '+floorLabel(c.floor):'')+(c.pos?' · precise anchor':' · landmark')+'</small></span><em>'+(c.verified?'Precise':'Guide')+'</em></button>').join('')||'<p class="empty">No landmarks surveyed yet.</p>';$('landmarkResults').querySelectorAll('[data-cp]').forEach(b=>b.onclick=()=>{const c=checkpointBy(b.dataset.cp);if(c){anchorAt(c);closeSheets();if(!state.route){if(state.pendingCheckpoint)openCheckpointPlanner(state.pendingCheckpoint);else if(state.pendingDestination||state.destination)openRoutePlanner(state.pendingDestination||state.destination)}}});openSheet('landmarkSheet')}
 $('landmarkTour').onclick=openTour;
 /* ---------- guidance ---------- */
 function calibrationMode(room){state.placing=room;closeSheets();toast('Tap the exact doorway for '+room.id);mapEl.classList.add('calibrating')}
@@ -201,7 +202,7 @@ function renderPlanner(){
  const q=routeQuality(r);$('plannerQuality').dataset.level=q.level;$('plannerQuality').innerHTML='<b>'+q.label+'</b><span>'+q.detail+'</span>';
  $('plannerSummary').textContent=plannerSummary(r);
  const warning=$('plannerWarning');warning.hidden=!r.note&&!r.blocked;warning.textContent=r.note||'';
- const begin=$('plannerBegin');begin.disabled=!!r.blocked;begin.textContent=r.blocked?(r.blockedReason==='start'?'Set starting point':'Route not verified'):'Start guidance';
+ const begin=$('plannerBegin');begin.disabled=!!r.blocked&&r.blockedReason!=='start';begin.textContent=r.blocked?(r.blockedReason==='start'?'Choose starting point':'Route not verified'):'Start guidance';
  $('plannerGeneral').hidden=!(r.blocked&&r.blockedReason==='stepfree');
  $('plannerSwap').hidden=!(r.a&&r.b);
 }
@@ -222,10 +223,10 @@ function saveActiveRoute(){
 }
 function beginRoute(route,resumeIndex=0){
  if(!route||route.blocked){renderPlanner();return}
- state.route=route;state.routeDraft=null;state.routeIndex=Math.max(0,Math.min(resumeIndex,Math.max(0,route.steps.length-1)));closeSheets();document.body.classList.add('navigating');$('guideLens').hidden=false;$('routeCard').hidden=false;$('welcomeCard').hidden=true;renderRoute();focusRoute();focusCurrentLeg();rememberDestination(route.b);saveActiveRoute();buzz();if(state.voice)setTimeout(speak,120)
+ state.route=route;state.routeDraft=null;state.routeIndex=Math.max(0,Math.min(resumeIndex,Math.max(0,route.steps.length-1)));closeSheets();$('assistantCard').hidden=true;$('tourSheet').hidden=true;document.body.classList.add('navigating');$('guideLens').hidden=false;$('routeCard').hidden=false;$('welcomeCard').hidden=true;renderRoute();focusRoute();focusCurrentLeg();rememberDestination(route.b);saveActiveRoute();buzz();if(state.voice)setTimeout(speak,120)
 }
 function finishRoute(){
- if(!state.route)return;state.routeIndex=Math.max(0,state.route.steps.length-1);renderRoute();buzz([30,40,70]);toast('Destination reached');store.set('cn_active_route',null);state.activeRoute=null;renderResumeRoute()
+ if(!state.route)return;const dest=state.route.b,target=state.route.targetCheckpoint;state.routeIndex=Math.max(0,state.route.steps.length-1);buzz([30,40,70]);toast('Destination reached');endRoute();if(dest)setTimeout(()=>selectEntity({type:'room',value:dest}),180);else if(target?.pos&&state.autoZoom)setTimeout(()=>flyTo(target.pos,2.4),180)
 }
 function endRoute(){state.route=null;routeSvg.innerHTML='';$('routeCard').hidden=true;$('guideLens').hidden=true;document.body.classList.remove('navigating');$('context').textContent='Blackpool Sixth · Find your way';renderTourGuide();store.set('cn_active_route',null);state.activeRoute=null;renderResumeRoute()}
 function focusRoute(){routeSvg.innerHTML='';if(!state.route)return;if(state.route.precision==='survey graph'&&state.route.path){const cps=allCheckpoints(),byId=new Map(cps.map(c=>[c.id,c])),points=state.route.path.nodes.map(id=>byId.get(id)?.pos).filter(Boolean);if(points.length===state.route.path.nodes.length&&points.length>1){const d=points.map((p,i)=>(i?'L ':'M ')+p[1]+' '+p[0]).join(' ');routeSvg.innerHTML='<path class="route-line surveyed" d="'+d+'"/>';const ys=points.map(p=>p[0]),xs=points.map(p=>p[1]);if(state.autoZoom)fitBounds([[Math.min(...ys)-90,Math.min(...xs)-90],[Math.max(...ys)+90,Math.max(...xs)+90]])}else if(state.route.b)focusRoom(state.route.b)}else if(state.route.b)focusRoom(state.route.b);else if(state.route.targetCheckpoint?.pos&&state.autoZoom)flyTo(state.route.targetCheckpoint.pos,2.2)}
@@ -237,7 +238,7 @@ function focusCurrentLeg(){
 function currentRouteStep(){return state.route?.steps?.[state.routeIndex]||null}
 function renderRoute(){
  const r=state.route;if(!r)return;const step=currentRouteStep();if(!step)return;const pct=((state.routeIndex+1)/r.steps.length)*100,q=routeQuality(r),confidence=Core.routeConfidence(r,state.confidence);
- $('routeEyebrow').textContent=q.label.toUpperCase();$('routeTitle').textContent=(r.fromLabel||'Start')+' → '+r.targetLabel;$('routeStatus').textContent='Step '+(state.routeIndex+1)+' of '+r.steps.length+' · route confidence '+confidence+'%';
+ $('routeEyebrow').textContent=q.label.toUpperCase();$('routeTitle').textContent=(r.fromLabel||'Start')+' → '+r.targetLabel;$('routeStatus').textContent='Step '+(state.routeIndex+1)+' of '+r.steps.length+' · '+q.label;
  $('routeTrust').dataset.level=q.level;$('routeTrust').innerHTML='<b>'+q.label+'</b><span>'+q.detail+(r.note?' '+r.note:'')+'</span>';
  $('nextInstruction').innerHTML='<span class="instruction-icon">'+(step.icon||'↑')+'</span><span>'+step.text+'</span>';
  const next=r.steps[state.routeIndex+1];$('routeNextPreview').hidden=!next;$('routeNextPreview').textContent=next?'Next: '+next.text:'';
@@ -269,8 +270,8 @@ function openLostRecovery(){
 }
 $('plannerChangeStart').onclick=()=>{closeSheets();openSearch('start')};
 $('plannerChangeDest').onclick=()=>{closeSheets();openSearch('destination')};
-$('plannerSwap').onclick=()=>{const r=state.routeDraft;if(!r?.a||!r?.b)return;const old=r.a;state.start=r.b;const p=posFor(r.b),cp=allCheckpoints().find(c=>c.room===r.b.id&&c.pos);if(p)setPosition(p,'room start: '+r.b.id,r.b.id,cp?.id||null,100);state.destination=old;openRoutePlanner(old)};
-$('plannerBegin').onclick=()=>beginRoute(state.routeDraft);
+$('plannerSwap').onclick=()=>{const r=state.routeDraft;if(!r?.a||!r?.b)return;const old=r.a;state.start=r.b;const p=posFor(r.b),cp=allCheckpoints().find(c=>c.room===r.b.id&&c.pos);if(p)setPosition(p,'room start: '+r.b.id,r.b.id,cp?.id||null,100);else{state.position={pos:null,source:'room start: '+r.b.id,roomId:r.b.id,checkpointId:null,at:Date.now()};store.set('cn_position',state.position);renderPosition()}state.destination=old;openRoutePlanner(old)};
+$('plannerBegin').onclick=()=>{if(state.routeDraft?.blockedReason==='start'){openPosition();return}beginRoute(state.routeDraft)};
 $('plannerGeneral').onclick=()=>{if(state.pendingCheckpoint)openCheckpointPlanner(state.pendingCheckpoint,{ignoreStepFree:true});else if(state.destination)openRoutePlanner(state.destination,{ignoreStepFree:true})};
 $('nextStep').onclick=nextRouteStep;$('prevStep').onclick=()=>{if(state.route&&state.routeIndex>0){state.routeIndex--;renderRoute();focusCurrentLeg()}};
 $('speakStep').onclick=speak;$('endRoute').onclick=endRoute;$('visualCheck').onclick=openTour;$('recalibrate').onclick=openPosition;$('guideLensClose').onclick=()=>$('guideLens').hidden=true;$('tourBackToGuide').onclick=()=>{closeTour();$('routeCard').hidden=false};
@@ -318,7 +319,7 @@ $('stepFreeToggle').onchange=e=>{state.stepFree=e.target.checked;store.set('cn_s
 $('voiceToggle').onchange=e=>{state.voice=e.target.checked;store.set('cn_voice',state.voice)};
 $('hapticToggle').onchange=e=>{state.haptics=e.target.checked;store.set('cn_haptics',state.haptics);if(state.haptics)buzz()};
 $('autoZoomToggle').onchange=e=>{state.autoZoom=e.target.checked;store.set('cn_autozoom',state.autoZoom)};
-$('profileSelect').onchange=e=>{state.profile=e.target.value;store.set('cn_profile',state.profile);toast('Route profile: '+state.profile)};
+$('profileSelect').onchange=e=>{state.profile=e.target.value;store.set('cn_profile',state.profile);toast('Route profile: '+state.profile);if(state.routeDraft){state.pendingCheckpoint?openCheckpointPlanner(state.pendingCheckpoint,{ignoreStepFree:state.draftIgnoreStepFree}):state.destination&&openRoutePlanner(state.destination,{ignoreStepFree:state.draftIgnoreStepFree})}};
 /* ---------- precision map studio ---------- */
 $('studioBtn').onclick=()=>{renderStudio();openSheet('studioSheet')};
 function studioTab(name){document.querySelectorAll('[data-studio-tab]').forEach(b=>b.classList.toggle('active',b.dataset.studioTab===name));['rooms','anchors','links'].forEach(n=>$(`studio${n[0].toUpperCase()+n.slice(1)}Panel`).hidden=n!==name)}
