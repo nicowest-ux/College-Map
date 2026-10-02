@@ -107,6 +107,34 @@ body.navigating .map-vignette{background:linear-gradient(180deg,rgba(9,14,28,.18
 
 /* user-annotated corridor network */
 .corridor-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:1}.corridor-seed{fill:none;stroke:#0078d7;stroke-width:5;stroke-linecap:round;stroke-linejoin:round;opacity:.58;vector-effect:non-scaling-stroke}.route-svg{z-index:3}
+
+
+/* clean map marker hierarchy — annotation geometry is routing-only */
+.corridor-svg,.corridor-seed{display:none!important}
+.zone-layer{display:none!important}
+.map-room-marker{display:none!important}
+.map-room-marker em{display:none!important}
+#map[data-zoom="detail"] .map-room-marker{display:block!important}
+.map-room-marker.important{display:block!important;width:18px!important;height:18px!important;z-index:30!important}
+.map-room-marker.important span{width:12px!important;height:12px!important;box-shadow:0 0 0 4px rgba(255,255,255,.96),0 3px 10px rgba(16,24,40,.28)!important}
+.map-room-marker.important em{display:block!important;left:16px!important;top:-8px!important;font-size:8px!important;border-radius:7px!important;padding:3px 5px!important;background:rgba(17,24,39,.94)!important}
+#map[data-zoom="detail"] .map-room-marker:not(.important){opacity:.62!important;transform:translate(-50%,-50%) scale(.76)!important}
+#map[data-zoom="detail"] .map-room-marker:not(.important) em{display:none!important}
+
+.checkpoint-hit{display:none!important;z-index:18!important;width:24px!important;height:24px!important;border-radius:50%!important;box-shadow:0 2px 8px rgba(16,24,40,.22)!important}
+.checkpoint-hit span{font-size:8px!important;font-weight:900!important;line-height:1!important}
+#map[data-zoom="mid"] .checkpoint-hit.facility,
+#map[data-zoom="detail"] .checkpoint-hit{display:grid!important}
+.checkpoint-hit.important{display:grid!important;z-index:32!important;width:30px!important;height:30px!important;box-shadow:0 0 0 4px rgba(255,255,255,.92),0 4px 12px rgba(16,24,40,.30)!important}
+.checkpoint-hit.type-landmark{background:rgba(255,255,255,.94)!important;border:1px solid rgba(105,65,198,.45)!important}
+.checkpoint-hit.type-toilet{background:#fff!important;border:2px solid #6941c6!important;color:#6941c6!important}
+.checkpoint-hit.type-lift{background:#eef6ff!important;border:2px solid #0b5fff!important;color:#0b5fff!important}
+.checkpoint-hit.type-stairs{background:#fff7e8!important;border:2px solid #a25d00!important;color:#7a4500!important}
+.checkpoint-hit.type-entrance{background:#eefbf3!important;border:2px solid #21845a!important;color:#17623f!important}
+.checkpoint-hit.type-printer,.checkpoint-hit.type-water{background:#f7f8fb!important;border:1px solid #98a2b3!important;color:#344054!important}
+
+body.navigating #roomLayer .map-room-marker:not(.important),
+body.navigating #checkpointLayer .checkpoint-hit:not(.important){display:none!important}
 </style><title>Campus Navigator</title></head>
 <body><div id="bootGuard" style="position:fixed;z-index:99999;inset:0;display:grid;place-items:center;background:#eef2f7;color:#111827;font:600 15px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif"><div style="background:white;border-radius:18px;padding:18px 20px;box-shadow:0 14px 40px rgba(16,24,40,.14);max-width:calc(100% - 32px);text-align:center"><b>Starting Campus Navigator…</b><div id="bootDetail" style="font-size:12px;color:#667085;margin-top:6px">Loading campus map and guide</div></div></div><script>(function(){window.__CN_BOOTED=false;function fail(m){var d=document.getElementById('bootDetail');if(d)d.textContent='Could not start: '+m;}window.addEventListener('error',function(e){fail(e.message||'JavaScript error');});window.addEventListener('unhandledrejection',function(){fail('A startup task failed');});setTimeout(function(){if(!window.__CN_BOOTED)fail('The app did not finish loading. Please refresh this page.');},6000);})();</script>
 <div id="offline" class="banner" hidden>Offline — map and saved campus data are still available. 360° tour needs a connection.</div>
@@ -554,10 +582,11 @@ for(const key of [...state.saved]){if(!String(key).includes(':')){state.saved.de
 
 /* ---------- zero-dependency image map engine ---------- */
 const mapEl=$('map');
-mapEl.innerHTML=`<div id="mapStage" class="map-stage"><img id="floorImage" draggable="false" alt="Campus floor plans"><svg id="corridorSvg" class="corridor-svg" viewBox="0 0 ${D.image.width} ${D.image.height}" preserveAspectRatio="none"></svg><svg id="routeSvg" class="route-svg" viewBox="0 0 ${D.image.width} ${D.image.height}" preserveAspectRatio="none"></svg><div id="zoneLayer" class="map-layer zone-layer"></div><div id="roomLayer" class="map-layer"></div><div id="checkpointLayer" class="map-layer"></div><div id="positionLayer" class="map-layer"></div></div>`;
-const stage=$('mapStage'),img=$('floorImage'),zoneLayer=$('zoneLayer'),roomLayer=$('roomLayer'),checkpointLayer=$('checkpointLayer'),positionLayer=$('positionLayer'),routeSvg=$('routeSvg'),corridorSvg=$('corridorSvg');
+mapEl.innerHTML=`<div id="mapStage" class="map-stage"><img id="floorImage" draggable="false" alt="Campus floor plans"><svg id="routeSvg" class="route-svg" viewBox="0 0 ${D.image.width} ${D.image.height}" preserveAspectRatio="none"></svg><div id="zoneLayer" class="map-layer zone-layer"></div><div id="roomLayer" class="map-layer"></div><div id="checkpointLayer" class="map-layer"></div><div id="positionLayer" class="map-layer"></div></div>`;
+const stage=$('mapStage'),img=$('floorImage'),zoneLayer=$('zoneLayer'),roomLayer=$('roomLayer'),checkpointLayer=$('checkpointLayer'),positionLayer=$('positionLayer'),routeSvg=$('routeSvg');
 img.src=D.image.src;stage.style.width=D.image.width+'px';stage.style.height=D.image.height+'px';
-function applyTransform(){stage.style.transform=`translate3d(${state.tx}px,${state.ty}px,0) scale(${state.scale})`;}
+function updateZoomMode(){mapEl.dataset.zoom=state.scale<.55?'overview':state.scale<1.35?'mid':'detail'}
+function applyTransform(){stage.style.transform=`translate3d(${state.tx}px,${state.ty}px,0) scale(${state.scale})`;updateZoomMode()}
 function fitBounds(bounds,animate=true){const [[y1,x1],[y2,x2]]=bounds,w=Math.max(10,x2-x1),h=Math.max(10,y2-y1),cw=mapEl.clientWidth||innerWidth,ch=mapEl.clientHeight||innerHeight;let s=Math.min(cw/w,ch/h)*.86;s=Math.max(.2,Math.min(4,s));const cx=(x1+x2)/2,cy=(y1+y2)/2;state.scale=s;state.tx=cw/2-cx*s;state.ty=ch/2-cy*s;stage.classList.toggle('animate-map',animate);applyTransform();setTimeout(()=>stage.classList.remove('animate-map'),350)}
 function fitAll(){fitBounds([[0,0],[D.image.height,D.image.width]])}
 function flyTo(pos,scale=2.15){const [y,x]=pos,cw=mapEl.clientWidth,ch=mapEl.clientHeight;state.scale=Math.max(.3,Math.min(4,scale));state.tx=cw/2-x*state.scale;state.ty=ch/2-y*state.scale;stage.classList.add('animate-map');applyTransform();setTimeout(()=>stage.classList.remove('animate-map'),350)}
@@ -597,18 +626,57 @@ function openFloorZone(bldg,floor){
  bindResults($('floorZoneRooms'));openSheet('floorZoneSheet')
 }
 function renderZones(){
+ // The printed floorplan already contains building/floor names. Extra floating floor badges
+ // obscured the drawing, so the layer is intentionally kept clean.
  zoneLayer.innerHTML='';
- for(const [key,view] of Object.entries(D.floorViews||{})){
-   const [bldg,floor]=key.split('|'),rooms=floorRooms(bldg,floor);if(!rooms.length)continue;
-   const ys=view.bounds.map(p=>p[0]),xs=view.bounds.map(p=>p[1]),y=(Math.min(...ys)+Math.max(...ys))/2,x=(Math.min(...xs)+Math.max(...xs))/2,precise=rooms.filter(verified).length;
-   const b=document.createElement('button');b.className='zone-hit'+(precise?' has-precise':'');b.style.left=x+'px';b.style.top=y+'px';b.setAttribute('aria-label',bldg+' '+floorLabel(floor)+', '+rooms.length+' rooms');
-   b.innerHTML='<b>'+bldg+'</b><small>'+floorLabel(floor).replace(' Floor','')+' · '+rooms.length+' rooms</small>';
-   b.onclick=e=>{e.stopPropagation();openFloorZone(bldg,floor)};zoneLayer.appendChild(b)
+}
+function importantRoomIds(){
+ const ids=new Set(),sel=targetRoom(state.selected);
+ if(sel)ids.add(sel.id);if(state.start)ids.add(state.start.id);if(state.destination)ids.add(state.destination.id);
+ if(state.route?.a)ids.add(state.route.a.id);if(state.route?.b)ids.add(state.route.b.id);
+ if(state.position?.roomId)ids.add(state.position.roomId);
+ return ids
+}
+function renderRooms(){
+ roomLayer.innerHTML='';const important=importantRoomIds();
+ for(const r of D.rooms){
+   const p=posFor(r);if(!p)continue;
+   const isImportant=important.has(r.id),b=document.createElement('button');
+   b.className='room-hit verified map-room-marker'+(isImportant?' important':'');
+   b.style.left=p[1]+'px';b.style.top=p[0]+'px';b.title=r.id;b.setAttribute('aria-label','Room '+r.id);
+   const scene=roomTourScene(r.id);b.innerHTML='<span></span><em>'+r.id+(scene?' · 360°':'')+'</em>';
+   b.onclick=e=>{e.stopPropagation();if(scene?.exact&&isImportant)openTour(scene,r.id);else selectEntity({type:'room',value:r})};
+   roomLayer.appendChild(b)
+ }
+ renderZones();updateAccuracy()
+}
+function pinPriority(c){
+ const current=currentRouteStep?.(),routeAnchor=current?.anchor;
+ if(c.id===routeAnchor)return 100;
+ if(c.id===state.pendingCheckpoint?.id)return 95;
+ if(c.id===state.position?.checkpointId)return 90;
+ return ({lift:80,stairs:75,toilet:70,entrance:65,printer:55,water:55,landmark:40})[c.type]||10
+}
+function renderCheckpoints(){
+ checkpointLayer.innerHTML='';
+ const allowed=new Set(['toilet','lift','stairs','entrance','printer','water','landmark']);
+ const importantIds=new Set([currentRouteStep?.()?.anchor,state.pendingCheckpoint?.id,state.position?.checkpointId].filter(Boolean));
+ const candidates=allCheckpoints().filter(c=>c.pos&&allowed.has(c.type)).sort((a,b)=>pinPriority(b)-pinPriority(a));
+ const placed=[];
+ for(const c of candidates){
+   const important=importantIds.has(c.id),threshold=c.type==='toilet'?30:24;
+   const clash=!important&&placed.some(x=>x.c.bldg===c.bldg&&x.c.floor===c.floor&&Math.hypot(x.c.pos[0]-c.pos[0],x.c.pos[1]-c.pos[1])<threshold);
+   if(clash)continue;
+   placed.push({c});
+   const b=document.createElement('button');
+   const facility=['toilet','lift','stairs','entrance','printer','water'].includes(c.type);
+   b.className='checkpoint-hit type-'+c.type+(facility?' facility':'')+(important?' important':'');
+   b.style.left=c.pos[1]+'px';b.style.top=c.pos[0]+'px';b.title=c.name;b.setAttribute('aria-label',c.name+' — tap for directions');
+   b.innerHTML='<span>'+checkpointIcon(c.type)+'</span>';
+   b.onclick=e=>{e.stopPropagation();state.selected=null;routeToCheckpoint(c)};
+   checkpointLayer.appendChild(b)
  }
 }
-function renderCorridors(){if(!corridorSvg)return;const cps=allCheckpoints(),byId=new Map(cps.map(c=>[c.id,c]));let d='';for(const e of D.edges||[]){if(e.source!=='annotated-corridor')continue;const a=byId.get(e.from),b=byId.get(e.to);if(a?.pos&&b?.pos)d+='M '+a.pos[1]+' '+a.pos[0]+' L '+b.pos[1]+' '+b.pos[0]+' '}corridorSvg.innerHTML=d?'<path class="corridor-seed" d="'+d+'"/>':''}
-function renderRooms(){roomLayer.innerHTML='';for(const r of D.rooms){const p=posFor(r);if(!p)continue;const b=document.createElement('button');b.className='room-hit verified';b.style.left=p[1]+'px';b.style.top=p[0]+'px';b.title=r.id;b.setAttribute('aria-label','Precise room pin '+r.id);const scene=roomTourScene(r.id);b.innerHTML='<span></span><em>'+r.id+(scene?' · 360°':'')+'</em>';b.onclick=e=>{e.stopPropagation();if(scene?.exact)openTour(scene,r.id);else selectEntity({type:'room',value:r})};roomLayer.appendChild(b)}renderZones();updateAccuracy()}
-function renderCheckpoints(){checkpointLayer.innerHTML='';for(const c of allCheckpoints()){if(!c.pos||c.type==='room'||c.type==='corridor')continue;const b=document.createElement('button');b.className=`checkpoint-hit ${c.verified?'verified':''}`;b.style.left=c.pos[1]+'px';b.style.top=c.pos[0]+'px';b.title=c.name;b.setAttribute('aria-label',c.name);b.innerHTML=`<span>${checkpointIcon(c.type)}</span>`;b.onclick=e=>{e.stopPropagation();anchorAt(c)};checkpointLayer.appendChild(b)}}
 function checkpointIcon(type){return ({entrance:'↗',junction:'⌁',stairs:'⇅',lift:'↕',toilet:'WC',printer:'▣',water:'◌',landmark:'◉',room:'•'})[type]||'◉'}
 function updateAccuracy(){const rooms=D.rooms.filter(verified).length,anchors=allCheckpoints().filter(c=>c.pos&&c.verified).length,links=(state.survey.edges||[]).length;const roomPct=Math.round(rooms/D.rooms.length*100);$('accuracyText').textContent=rooms+' rooms · '+anchors+' anchors';$('accuracyBadge').dataset.level=roomPct>=70?'high':roomPct>=30?'mid':'low';if($('studioStats')){const a=typeof surveyAudit==='function'?surveyAudit():{isolated:0,unsafe:0,closed:0};$('studioStats').innerHTML='<b>'+rooms+'/'+D.rooms.length+'</b> precise room-door pins · <b>'+anchors+'</b> precise anchors · <b>'+links+'</b> custom surveyed links.<br><b>'+a.isolated+'</b> isolated mapped anchors · <b>'+a.unsafe+'</b> links without verified step-free status · <b>'+a.closed+'</b> closed links.<br>Navigation will not invent geometry for gaps in this survey.'}}
 
@@ -620,7 +688,7 @@ $('backdrop').onclick=()=>closeSheets();document.querySelectorAll('.close').forE
 /* ---------- destination detail ---------- */
 function placeCheckpoint(place){return allCheckpoints().find(c=>c.place===place.id)||null}
 function selectEntity(sel){
- state.selected=sel;const r=targetRoom(sel),cp=sel.type==='place'?placeCheckpoint(sel.value):null;if(r)focusRoom(r);else if(cp?.pos)flyTo(cp.pos,2.3);
+ state.selected=sel;renderRooms();renderCheckpoints();const r=targetRoom(sel),cp=sel.type==='place'?placeCheckpoint(sel.value):null;if(r)focusRoom(r);else if(cp?.pos)flyTo(cp.pos,2.3);
  const isRoom=sel.type==='room',v=sel.value;
  $('roomKind').textContent=isRoom?'ROOM':'DESTINATION';$('roomName').textContent=isRoom?v.id:v.name;
  if(isRoom){
@@ -861,8 +929,8 @@ function openRoutePlanner(dest,options={}){
 function openCheckpointPlanner(cp,options={}){
  state.pendingCheckpoint=cp;state.pendingDestination=null;state.routeDraft=computeCheckpointRoute(cp,{ignoreStepFree:!!options.ignoreStepFree});state.draftIgnoreStepFree=!!options.ignoreStepFree;renderPlanner();openSheet('plannerSheet')
 }
-function routeTo(dest){state.destination=dest;state.pendingDestination=dest;openRoutePlanner(dest)}
-function routeToCheckpoint(cp){state.pendingCheckpoint=cp;openCheckpointPlanner(cp)}
+function routeTo(dest){state.destination=dest;state.pendingDestination=dest;renderRooms();renderCheckpoints();openRoutePlanner(dest)}
+function routeToCheckpoint(cp){state.pendingCheckpoint=cp;renderCheckpoints();openCheckpointPlanner(cp)}
 function buzz(pattern=18){if(state.haptics&&navigator.vibrate)try{navigator.vibrate(pattern)}catch{}}
 function saveActiveRoute(){
  if(!state.route?.b){store.set('cn_active_route',null);state.activeRoute=null;return}
@@ -871,12 +939,12 @@ function saveActiveRoute(){
 }
 function beginRoute(route,resumeIndex=0){
  if(!route||route.blocked){renderPlanner();return}
- state.route=route;state.routeDraft=null;state.routeIndex=Math.max(0,Math.min(resumeIndex,Math.max(0,route.steps.length-1)));state.legWalkMeters=0;closeSheets();$('assistantCard').hidden=true;$('tourSheet').hidden=true;document.body.classList.add('navigating');$('guideLens').hidden=false;$('routeCard').hidden=false;$('welcomeCard').hidden=true;renderRoute();focusRoute();focusCurrentLeg();rememberDestination(route.b);saveActiveRoute();buzz();if(state.voice)setTimeout(speak,120)
+ state.route=route;state.routeDraft=null;state.routeIndex=Math.max(0,Math.min(resumeIndex,Math.max(0,route.steps.length-1)));state.legWalkMeters=0;renderRooms();renderCheckpoints();closeSheets();$('assistantCard').hidden=true;$('tourSheet').hidden=true;document.body.classList.add('navigating');$('guideLens').hidden=false;$('routeCard').hidden=false;$('welcomeCard').hidden=true;renderRoute();focusRoute();focusCurrentLeg();rememberDestination(route.b);saveActiveRoute();buzz();if(state.voice)setTimeout(speak,120)
 }
 function finishRoute(){
  if(!state.route)return;const dest=state.route.b,target=state.route.targetCheckpoint;state.routeIndex=Math.max(0,state.route.steps.length-1);buzz([30,40,70]);toast('Destination reached');endRoute();if(dest)setTimeout(()=>selectEntity({type:'room',value:dest}),180);else if(target?.pos&&state.autoZoom)setTimeout(()=>flyTo(target.pos,2.4),180)
 }
-function endRoute(){if(state.cameraActive)stopCameraGuide();state.route=null;routeSvg.innerHTML='';$('routeCard').hidden=true;$('guideLens').hidden=true;document.body.classList.remove('navigating');$('context').textContent='Blackpool Sixth · Find your way';renderTourGuide();store.set('cn_active_route',null);state.activeRoute=null;renderResumeRoute()}
+function endRoute(){if(state.cameraActive)stopCameraGuide();state.route=null;routeSvg.innerHTML='';renderRooms();renderCheckpoints();$('routeCard').hidden=true;$('guideLens').hidden=true;document.body.classList.remove('navigating');$('context').textContent='Blackpool Sixth · Find your way';renderTourGuide();store.set('cn_active_route',null);state.activeRoute=null;renderResumeRoute()}
 function focusRoute(){
  routeSvg.innerHTML='';if(!state.route)return;
  const endpoint=[];
@@ -1024,7 +1092,7 @@ document.querySelectorAll('.bottom button').forEach(b=>b.onclick=()=>{document.q
 /* ---------- startup / deep links ---------- */
 window.addEventListener('online',()=>$('offline').hidden=true);window.addEventListener('offline',()=>$('offline').hidden=false);$('offline').hidden=navigator.onLine;
 if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
-renderHome();renderRooms();renderCheckpoints();renderCorridors();renderPosition();renderStudio();renderSuggestions();$('stepFreeToggle').checked=state.stepFree;$('voiceToggle').checked=state.voice;$('profileSelect').value=state.profile;$('hapticToggle').checked=state.haptics;$('autoZoomToggle').checked=state.autoZoom;$('strideInput').value=state.strideM.toFixed(2);renderResumeRoute();
+renderHome();renderRooms();renderCheckpoints();renderPosition();renderStudio();renderSuggestions();$('stepFreeToggle').checked=state.stepFree;$('voiceToggle').checked=state.voice;$('profileSelect').value=state.profile;$('hapticToggle').checked=state.haptics;$('autoZoomToggle').checked=state.autoZoom;$('strideInput').value=state.strideM.toFixed(2);renderResumeRoute();
 const url=new URL(location.href),action=url.searchParams.get('action'),cpId=url.searchParams.get('cp'),fromId=url.searchParams.get('from'),toId=url.searchParams.get('to');
 setTimeout(()=>{
  if(img.complete)fitAll();
