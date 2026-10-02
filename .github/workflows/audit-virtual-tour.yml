@@ -1,0 +1,22 @@
+name: Audit virtual tour deeplinks
+on:
+  push:
+    branches: [tour-deeplink-audit]
+    paths:
+      - "tools/audit_virtual_tour.py"
+      - ".github/workflows/audit-virtual-tour.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect hosted virtual tour
+        run: python tools/audit_virtual_tour.py
+      - name: Upload tour audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: virtual-tour-audit
+          path: audit/tour
