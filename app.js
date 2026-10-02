@@ -42,6 +42,17 @@ img.addEventListener('load',()=>{fitAll();setTimeout(updateAccuracy,0)});window.
 /* ---------- campus entities ---------- */
 function posFor(r){return state.cal[r.id]?.pos||r.pos||null}
 function verified(r){return !!state.cal[r.id]||!!r.verified}
+function roomGuideHint(r){return r?(D.roomGuideHints?.[r.id]||null):null}
+function naturalRoomCompare(a,b){return a.id.localeCompare(b.id,undefined,{numeric:true,sensitivity:'base'})}
+function floorCorridorNodes(bldg,floor){return (D.checkpoints||[]).filter(c=>c.type==='corridor'&&c.pos&&c.bldg===bldg&&c.floor===floor)}
+function rankedRoomSectionPos(r){
+ const nodes=floorCorridorNodes(r.bldg,r.floor);if(!nodes.length)return null;
+ const rooms=D.rooms.filter(x=>x.bldg===r.bldg&&x.floor===r.floor).sort(naturalRoomCompare),idx=Math.max(0,rooms.findIndex(x=>x.id===r.id)),frac=rooms.length>1?idx/(rooms.length-1):.5;
+ const ys=nodes.map(n=>n.pos[0]),xs=nodes.map(n=>n.pos[1]),axis=(Math.max(...xs)-Math.min(...xs))>=(Math.max(...ys)-Math.min(...ys))?1:0;
+ const ordered=[...nodes].sort((a,b)=>a.pos[axis]-b.pos[axis]),pick=ordered[Math.round(frac*(ordered.length-1))];
+ return pick?.pos||null
+}
+function roomGuidePos(r){return posFor(r)||roomGuideHint(r)||rankedRoomSectionPos(r)||null}
 function roomBy(q){q=(q||'').trim().toLowerCase();return D.rooms.find(r=>r.id.toLowerCase()===q)||D.rooms.find(r=>(r.aliases||[]).some(a=>a.toLowerCase()===q))||null}
 function placeBy(id){return D.places.find(p=>p.id===id)||null}
 function floorLabel(f){return f==='G'?'Ground Floor':f==='LG'?'Lower Ground Floor':f==='1'?'First Floor':f==='2'?'Second Floor':f}
@@ -50,9 +61,17 @@ function entityKey(sel){return !sel?null:sel.type==='room'?`room:${sel.value.id}
 function targetRoom(sel){if(!sel)return null;if(sel.type==='room')return sel.value;if(sel.type==='place'&&sel.value.room)return roomBy(sel.value.room);return null}
 function labelFor(sel){return !sel?'':sel.type==='room'?sel.value.id:sel.value.name}
 function toast(s){const t=$('toast');t.textContent=s;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,3000)}
-function focusRoom(r){const p=posFor(r);if(p)flyTo(p,2.25);else{const v=floorView(r);if(v)fitBounds(v.bounds)}}
+function focusRoom(r){const p=roomGuidePos(r);if(p)flyTo(p,2.25);else{const v=floorView(r);if(v)fitBounds(v.bounds)}}
 function saveSurvey(){store.set('cn_survey',state.survey)}
-function allCheckpoints(){const merged=new Map();for(const c of D.checkpoints||[])merged.set(c.id,{...c,seed:true});for(const r of D.rooms||[]){const p=posFor(r);if(p&&!merged.has('ROOM_'+r.id))merged.set('ROOM_'+r.id,{id:'ROOM_'+r.id,name:r.id+' doorway',type:'room',room:r.id,bldg:r.bldg,floor:r.floor,pos:p,verified:verified(r),source:'room-door'})}for(const c of state.survey.checkpoints||[])merged.set(c.id,{...c,seed:false});return [...merged.values()]}
+function allCheckpoints(){
+ const merged=new Map();for(const c of D.checkpoints||[])merged.set(c.id,{...c,seed:true});
+ for(const r of D.rooms||[]){
+   const exact=posFor(r),p=exact||roomGuidePos(r);if(!p)continue;
+   const id=(exact?'ROOM_':'ROOM_GUIDE_')+r.id;
+   if(!merged.has(id))merged.set(id,{id,name:exact?r.id+' doorway':r.id+' room section',type:exact?'room':'room-section',room:r.id,bldg:r.bldg,floor:r.floor,pos:p,verified:!!exact&&verified(r),source:exact?'room-door':'room-guide-section',estimated:!exact})
+ }
+ for(const c of state.survey.checkpoints||[])merged.set(c.id,{...c,seed:false});return [...merged.values()]
+}
 function checkpointBy(id){return allCheckpoints().find(c=>c.id===id)||null}
 function checkpointMatches(text){const q=norm(text);return allCheckpoints().map(c=>({c,score:[c.name,c.type,c.id,...(c.keywords||[])].map(norm).reduce((n,h)=>n+(h&&q.includes(h)?40:h&&h.includes(q)?25:0),0)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score)}
 function floorRooms(bldg,floor){return D.rooms.filter(r=>r.bldg===bldg&&r.floor===floor)}
@@ -260,7 +279,7 @@ $('landmarkTour').onclick=openRouteVisual;
 
 /* ---------- camera guide ---------- */
 function cameraLegData(){
- const step=currentRouteStep?.();if(!step)return null;const from=checkpointBy(step.fromAnchor),to=checkpointBy(step.anchor),seg=state.route?.precision==='survey graph'?state.route.path?.segments?.[state.routeIndex]:null;
+ const step=currentRouteStep?.();if(!step)return null;const from=checkpointBy(step.fromAnchor),to=checkpointBy(step.anchor),seg=state.route?.path?.segments?.[Number.isInteger(step.segmentIndex)?step.segmentIndex:state.routeIndex]||null;
  const mode=step.mode||seg?.edge?.mode||(to?.type==='stairs'?'stairs':to?.type==='lift'?'lift':'corridor'),sameFloor=from&&to&&from.bldg===to.bldg&&from.floor===to.floor;
  const mapBearing=from?.pos&&to?.pos&&sameFloor?Core.bearing(from.pos,to.pos):null,key=from?floorKeyFor(from.bldg,from.floor):currentFloorKey(),offset=key&&state.headingCal[key],targetHeading=mapBearing!=null&&offset!=null?Core.normAngle(mapBearing+offset):null;
  const delta=targetHeading!=null&&state.rawHeading!=null?Core.angleDelta(state.rawHeading,targetHeading):null,meters=Number(step.meters??seg?.edge?.meters),remaining=Number.isFinite(meters)?Math.max(0,meters-state.legWalkMeters):null;
@@ -288,8 +307,29 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden&&state.came
 
 /* ---------- guidance ---------- */
 function calibrationMode(room){state.placing=room;closeSheets();toast('Tap the exact doorway for '+room.id);mapEl.classList.add('calibrating')}
-function generatedConnectorEdges(){const cps=allCheckpoints(),corr=cps.filter(c=>c.type==='corridor'&&c.pos),out=[];for(const c of cps){if(!c.pos||c.type==='corridor')continue;let best=null,bd=Infinity;for(const n of corr){if(n.bldg!==c.bldg||n.floor!==c.floor)continue;const d=Math.hypot(n.pos[0]-c.pos[0],n.pos[1]-c.pos[1]);if(d<bd){bd=d;best=n}}if(best&&bd<=115)out.push({from:c.id,to:best.id,mode:c.type==='room'?'doorway':'corridor',access:'public',stepFree:null,source:'auto-snap-to-annotated-corridor',meters:null})}return out}
-function allEdges(){return [...(D.edges||[]),...(state.survey.edges||[]),...generatedConnectorEdges()]}
+function generatedConnectorEdges(){
+ const cps=allCheckpoints(),corr=cps.filter(c=>c.type==='corridor'&&c.pos),out=[];
+ for(const c of cps){
+  if(!c.pos||c.type==='corridor')continue;let best=null,bd=Infinity;
+  for(const n of corr){if(n.bldg!==c.bldg||n.floor!==c.floor)continue;const d=Math.hypot(n.pos[0]-c.pos[0],n.pos[1]-c.pos[1]);if(d<bd){bd=d;best=n}}
+  const limit=c.type==='room-section'?150:115;
+  if(best&&bd<=limit)out.push({from:c.id,to:best.id,mode:c.type==='room'?'doorway':'corridor',access:'public',stepFree:null,source:c.type==='room-section'?'room-section-snap':'auto-snap-to-annotated-corridor',meters:null})
+ }
+ return out
+}
+function graphStitchEdges(){
+ const corr=(D.checkpoints||[]).filter(c=>c.type==='corridor'&&c.pos),base=D.edges||[],degree=new Map(corr.map(c=>[c.id,0]));
+ for(const e of base){if(degree.has(e.from))degree.set(e.from,degree.get(e.from)+1);if(degree.has(e.to))degree.set(e.to,degree.get(e.to)+1)}
+ const ends=corr.filter(c=>(degree.get(c.id)||0)<=1),out=[],seen=new Set();
+ for(let i=0;i<ends.length;i++)for(let j=i+1;j<ends.length;j++){
+   const a=ends[i],b=ends[j];if(a.floor!==b.floor)continue;
+   const d=Math.hypot(a.pos[0]-b.pos[0],a.pos[1]-b.pos[1]);
+   if(d>28)continue;const key=[a.id,b.id].sort().join('|');if(seen.has(key))continue;seen.add(key);
+   out.push({from:a.id,to:b.id,mode:'corridor',access:'public',stepFree:null,source:'annotated-component-stitch',weight:Math.max(1,d)})
+ }
+ return out
+}
+function allEdges(){return [...(D.edges||[]),...(state.survey.edges||[]),...generatedConnectorEdges(),...graphStitchEdges()]}
 function currentStartRef(){
  const cp=state.position?.checkpointId?checkpointBy(state.position.checkpointId):null;
  if(cp)return {kind:'checkpoint',checkpoint:cp,label:cp.name,room:cp.room?roomBy(cp.room):null};
@@ -297,53 +337,60 @@ function currentStartRef(){
  if(r)return {kind:'room',room:r,label:r.id};
  return null
 }
-function startIdsForGraph(ref,cps){if(!ref)return[];if(ref.kind==='checkpoint')return[ref.checkpoint.id];if(ref.room)return cps.filter(c=>c.room===ref.room.id).map(c=>c.id);return[]}
+function startIdsForGraph(ref,cps){
+ if(!ref)return[];
+ if(ref.kind==='checkpoint')return[ref.checkpoint.id];
+ if(ref.room){const exact=cps.filter(c=>c.room===ref.room.id&&c.source==='room-door').map(c=>c.id);if(exact.length)return exact;return cps.filter(c=>c.room===ref.room.id).map(c=>c.id)}
+ return[]
+}
 function routeQuality(route){return Core.routeQuality(route)}
-function buildGraphRoute(ref,targetIds,targetLabel,targetRoom=null,ignoreStepFree=false){
+function routeEndpointCheckpoint(path,cps,which='end'){if(!path)return null;const id=which==='start'?path.startId:path.endId;return cps.find(c=>c.id===id)||null}
+function buildGraphRoute(ref,targetIds,targetLabel,targetRoom=null,ignoreStepFree=false,extra={}){
  const cps=allCheckpoints(),startIds=startIdsForGraph(ref,cps);
  if(!startIds.length||!targetIds.length)return null;
  const path=Core.shortestPath({checkpoints:cps,edges:allEdges(),startIds,endIds:targetIds,options:{profile:state.profile,stepFree:state.stepFree&&!ignoreStepFree}});
  if(!path)return null;
- let steps=Core.pathSteps(path,cps);
- if(!steps.length)steps=[{action:'arrive',icon:'✓',text:'You are already at '+targetLabel+'.',anchor:path.endId,fromAnchor:path.startId,confirm:'Destination confirmed.'}];
- return {a:ref.room||null,b:targetRoom,fromLabel:ref.label,targetLabel,steps,precision:'survey graph',note:'Built only from surveyed links.',path,ignoreStepFree,blocked:false}
+ const startCp=routeEndpointCheckpoint(path,cps,'start'),endCp=routeEndpointCheckpoint(path,cps,'end');
+ const estimatedStart=startCp?.source==='room-guide-section',estimatedDestination=endCp?.source==='room-guide-section'||!!extra.estimatedDestination;
+ let steps=Core.compactPathSteps(path,cps,{targetLabel,floorLabel});
+ if(!steps.length)steps=[{action:'arrive',icon:'✓',text:'You are already at '+targetLabel+'.',anchor:path.endId,fromAnchor:path.startId,confirm:'Destination confirmed.',segmentIndex:0}];
+ if(steps.length){
+   const last=steps[steps.length-1];
+   if(estimatedDestination){
+     last.action='arrive';last.icon='◎';last.text='You’re at the '+targetLabel+' section.';
+     last.confirm='The corridor route is complete. If the exact door is not immediately visible, tap “I’m lost” and enter the nearest room number so I can refine the final approach.'
+   }else last.text=extra.finalText||('Arrive at '+targetLabel+'.');
+ }
+ const precision=estimatedStart||estimatedDestination?'guided room section':'survey graph';
+ const note=estimatedDestination?'Full corridor guidance is available. The final room-section position comes from the floorplan and is not yet a surveyed doorway pin.':estimatedStart?'Your starting room uses a floorplan room-section position; the corridor journey itself follows mapped paths.':'Route follows the mapped corridor network.';
+ return {a:ref.room||null,b:targetRoom,fromLabel:ref.label,targetLabel,steps,precision,note,path,ignoreStepFree,blocked:false,estimatedStart,estimatedDestination,targetCheckpoint:extra.targetCheckpoint||null,place:extra.place||null}
+}
+function roomTargetIds(room,cps){
+ const exact=cps.filter(c=>c.room===room.id&&c.source==='room-door').map(c=>c.id);if(exact.length)return exact;
+ return cps.filter(c=>c.room===room.id&&c.source==='room-guide-section').map(c=>c.id)
 }
 function computeRoomRoute(dest,options={}){
  const ignoreStepFree=!!options.ignoreStepFree,ref=currentStartRef(),a=ref?.room||null,b=dest;
- if(!ref)return {a:null,b,fromLabel:'Starting point needed',targetLabel:b.id,steps:[],precision:'none',note:'Set your current room or a surveyed landmark first.',blocked:true,blockedReason:'start'};
- const cps=allCheckpoints(),endIds=cps.filter(c=>c.room===b.id).map(c=>c.id);
- const graph=buildGraphRoute(ref,endIds,b.id,b,ignoreStepFree);
+ if(!ref)return {a:null,b,fromLabel:'Starting point needed',targetLabel:b.id,steps:[],precision:'none',note:'Tell me where you are first so I can calculate the corridor route.',blocked:true,blockedReason:'start'};
+ const cps=allCheckpoints(),endIds=roomTargetIds(b,cps);
+ const graph=buildGraphRoute(ref,endIds,b.id,b,ignoreStepFree,{estimatedDestination:!posFor(b)});
  if(graph)return graph;
  const template=a?D.routeTemplates?.[a.id+'>'+b.id]:null;
  if(template){
    const accessOK=template.audience!=='staff'||state.profile==='staff';
    const stepOK=!state.stepFree||ignoreStepFree||template.stepFree===true;
-   if(!accessOK)return {a,b,fromLabel:ref.label,targetLabel:b.id,steps:[],precision:'none',note:'This route is restricted for your current route profile.',blocked:true,blockedReason:'access'};
+   if(!accessOK)return {a,b,fromLabel:ref.label,targetLabel:b.id,steps:[],precision:'none',note:'The known route crosses a staff-only area for your current route profile.',blocked:true,blockedReason:'access'};
    const steps=template.steps.map((x,i,arr)=>({...x,fromAnchor:i?arr[i-1].anchor:null}));
-   return {a,b,fromLabel:ref.label,targetLabel:b.id,steps,precision:template.precision==='landmark-verified'?'verified landmark route':template.precision,note:template.note||'',ignoreStepFree,blocked:!stepOK,blockedReason:stepOK?null:'stepfree'};
+   return {a,b,fromLabel:ref.label,targetLabel:b.id,steps,precision:'verified landmark route',note:template.note||'Landmark-by-landmark route.',ignoreStepFree,blocked:!stepOK,blockedReason:stepOK?null:'stepfree'};
  }
- if(!a)return {a:null,b,fromLabel:ref.label,targetLabel:b.id,steps:[],precision:'none',note:'Your start is precise, but it is not yet connected to a surveyed route graph for this destination.',blocked:true,blockedReason:'coverage'};
- const sameFloor=a.bldg===b.bldg&&a.floor===b.floor;
- const steps=sameFloor?[
-   {action:'start',icon:'●',text:'Start at '+a.id+'.',anchor:null,confirm:''},
-   {action:'orientation',icon:'◎',text:'Stay on '+floorLabel(b.floor)+' and use visible room numbers/signage toward '+b.id+'.',anchor:null,confirm:'This is floor guidance, not a surveyed corridor route.'},
-   {action:'arrive',icon:'✓',text:'Look for '+b.id+' and confirm the room number before entering.',anchor:null,confirm:''}
- ]:[
-   {action:'start',icon:'●',text:'Start at '+a.id+' in '+a.bldg+', '+floorLabel(a.floor)+'.',anchor:null,confirm:''},
-   {action:'orientation',icon:'◎',text:'Follow official building signage toward '+b.bldg+'.',anchor:null,confirm:'No unsurveyed corridor turns are being invented.'},
-   {action:'level',icon:'⇅',text:a.floor!==b.floor?'Use signed stairs or a lift to reach '+floorLabel(b.floor)+'.':'Remain on '+floorLabel(b.floor)+'.',anchor:null,confirm:''},
-   {action:'arrive',icon:'✓',text:'Continue to '+b.id+' and confirm the room number.',anchor:null,confirm:''}
- ];
- const precision=sameFloor?'floor-level guidance':'building/floor guidance';
- const blocked=state.stepFree&&!ignoreStepFree;
- return {a,b,fromLabel:ref.label,targetLabel:b.id,steps,precision,note:blocked?'A verified step-free path has not yet been surveyed for this route.':'Turn-by-turn corridor geometry is not yet surveyed.',ignoreStepFree,blocked,blockedReason:blocked?'stepfree':null}
+ return {a,b,fromLabel:ref.label,targetLabel:b.id,steps:[],precision:'none',note:'I cannot yet connect these two points through the mapped corridor network. I will not replace missing route data with “follow signs”. Re-anchor to a nearby room or landmark and I’ll calculate again.',blocked:true,blockedReason:'coverage'}
 }
 function computeCheckpointRoute(cp,options={}){
  const ref=currentStartRef(),ignoreStepFree=!!options.ignoreStepFree;
- if(!ref)return {a:null,b:null,fromLabel:'Starting point needed',targetLabel:cp.name,steps:[],precision:'none',note:'Set a surveyed start first.',blocked:true,blockedReason:'start',targetCheckpoint:cp};
- const graph=buildGraphRoute(ref,[cp.id],cp.name,null,ignoreStepFree);
+ if(!ref)return {a:null,b:null,fromLabel:'Starting point needed',targetLabel:cp.name,steps:[],precision:'none',note:'Tell me where you are first so I can calculate the route.',blocked:true,blockedReason:'start',targetCheckpoint:cp};
+ const graph=buildGraphRoute(ref,[cp.id],cp.name,null,ignoreStepFree,{targetCheckpoint:cp});
  if(graph){graph.targetCheckpoint=cp;return graph}
- return {a:ref.room||null,b:null,fromLabel:ref.label,targetLabel:cp.name,steps:[],precision:'none',note:'This facility anchor is known, but your current position is not connected to it by a complete surveyed route.',blocked:true,blockedReason:state.stepFree&&!ignoreStepFree?'stepfree':'coverage',targetCheckpoint:cp}
+ return {a:ref.room||null,b:null,fromLabel:ref.label,targetLabel:cp.name,steps:[],precision:'none',note:'I cannot yet connect your confirmed position to this destination through the mapped corridor network. Re-anchor to a nearby room or landmark and I’ll recalculate.',blocked:true,blockedReason:state.stepFree&&!ignoreStepFree?'stepfree':'coverage',targetCheckpoint:cp}
 }
 function plannerSummary(route){
  const q=routeQuality(route),count=route.steps?.length||0;
@@ -387,7 +434,8 @@ function endRoute(){if(state.cameraActive)stopCameraGuide();state.route=null;rou
 function focusRoute(){
  routeSvg.innerHTML='';if(!state.route)return;
  const endpoint=[];
- const pa=state.route.a?posFor(state.route.a):state.position?.pos,pb=state.route.b?posFor(state.route.b):state.route.targetCheckpoint?.pos;
+ const pathCps=allCheckpoints(),pathStart=state.route.path?routeEndpointCheckpoint(state.route.path,pathCps,'start'):null,pathEnd=state.route.path?routeEndpointCheckpoint(state.route.path,pathCps,'end'):null;
+ const pa=state.route.a?(posFor(state.route.a)||pathStart?.pos):state.position?.pos,pb=state.route.b?(posFor(state.route.b)||pathEnd?.pos):state.route.targetCheckpoint?.pos;
  if(pa)endpoint.push('<circle class="route-endpoint start" cx="'+pa[1]+'" cy="'+pa[0]+'" r="16"/><text class="route-endpoint-label" x="'+pa[1]+'" y="'+(pa[0]+5)+'">S</text>');
  if(pb)endpoint.push('<circle class="route-endpoint end" cx="'+pb[1]+'" cy="'+pb[0]+'" r="16"/><text class="route-endpoint-label" x="'+pb[1]+'" y="'+(pb[0]+5)+'">D</text>');
  let routeMarkup='';
