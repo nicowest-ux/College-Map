@@ -1,7 +1,7 @@
 name: Navigation overhaul checks
 on:
   push:
-    branches: [navigation-overhaul-v6]
+    branches: [main, navigation-overhaul-v6]
 permissions:
   contents: read
 jobs:
