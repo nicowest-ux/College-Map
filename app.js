@@ -382,6 +382,31 @@ function startIdsForGraph(ref,cps){
 }
 function routeQuality(route){return Core.routeQuality(route)}
 function routeEndpointCheckpoint(path,cps,which='end'){if(!path)return null;const id=which==='start'?path.startId:path.endId;return cps.find(c=>c.id===id)||null}
+function nearbyRouteLandmark(cp,cps){
+ if(!cp?.pos)return null;let best=null,bd=Infinity;
+ for(const l of cps){if(!l.pos||l.type!=='landmark'||l.id===cp.id||l.bldg!==cp.bldg||l.floor!==cp.floor)continue;const d=Core.distance(cp.pos,l.pos);if(d<bd){bd=d;best=l}}
+ return bd<=62?best:null
+}
+function landmarkInstruction(step,landmark){
+ if(!landmark)return step.text;
+ const name=landmark.name;
+ if(step.action==='left')return 'Turn left at '+name+'.';
+ if(step.action==='right')return 'Turn right at '+name+'.';
+ if(step.action==='slight-left')return 'Keep left by '+name+'.';
+ if(step.action==='slight-right')return 'Keep right by '+name+'.';
+ if(step.action==='uturn')return 'Turn around at '+name+'.';
+ if(step.action==='continue')return 'Continue straight past '+name+'.';
+ return step.text
+}
+function enrichRouteSteps(steps,cps){
+ const used=new Set();
+ for(let i=0;i<Math.max(0,steps.length-1);i++){
+   const s=steps[i],cp=cps.find(c=>c.id===s.anchor);if(!cp||s.mode==='lift'||s.mode==='stairs')continue;
+   const l=nearbyRouteLandmark(cp,cps);if(!l||used.has(l.id))continue;used.add(l.id);
+   s.text=landmarkInstruction(s,l);s.confirm='Look for '+l.name+'.';s.confirmCheckpointId=l.id
+ }
+ return steps
+}
 function buildGraphRoute(ref,targetIds,targetLabel,targetRoom=null,ignoreStepFree=false,extra={}){
  const cps=allCheckpoints(),startIds=startIdsForGraph(ref,cps);
  if(!startIds.length||!targetIds.length)return null;
@@ -389,7 +414,7 @@ function buildGraphRoute(ref,targetIds,targetLabel,targetRoom=null,ignoreStepFre
  if(!path)return null;
  const startCp=routeEndpointCheckpoint(path,cps,'start'),endCp=routeEndpointCheckpoint(path,cps,'end');
  const estimatedStart=startCp?.source==='room-guide-section',estimatedDestination=endCp?.source==='room-guide-section'||!!extra.estimatedDestination;
- let steps=Core.compactPathSteps(path,cps,{targetLabel,floorLabel});
+ let steps=enrichRouteSteps(Core.compactPathSteps(path,cps,{targetLabel,floorLabel}),cps);
  if(!steps.length)steps=[{action:'arrive',icon:'✓',text:'You are already at '+targetLabel+'.',anchor:path.endId,fromAnchor:path.startId,confirm:'Destination confirmed.',segmentIndex:0}];
  if(steps.length){
    const last=steps[steps.length-1];
@@ -493,7 +518,7 @@ function renderRoute(){
  $('nextInstruction').innerHTML='<span class="instruction-icon">'+(step.icon||'↑')+'</span><span>'+step.text+'</span>';
  const next=r.steps[state.routeIndex+1];$('routeNextPreview').hidden=!next;$('routeNextPreview').textContent=next?'Next: '+next.text:'';
  $('routeSteps').innerHTML=r.steps.map((s,i)=>'<li class="'+(i===state.routeIndex?'current':i<state.routeIndex?'done':'')+'"><b>'+(s.icon||'•')+'</b> '+s.text+'</li>').join('');$('routeProgress').style.width=pct+'%';
- const cp=checkpointBy(step.anchor);$('routeLandmark').hidden=!step.confirm&&!cp;if(step.confirm||cp){$('routeLandmarkIcon').textContent=step.icon||checkpointIcon(cp?.type);$('routeLandmarkName').textContent=cp?.name||'Visual landmark';$('routeLandmarkHint').textContent=step.confirm||''}
+ const cp=checkpointBy(step.confirmCheckpointId||step.anchor);$('routeLandmark').hidden=!step.confirm&&!cp;if(step.confirm||cp){$('routeLandmarkIcon').textContent=step.icon||checkpointIcon(cp?.type);$('routeLandmarkName').textContent=cp?.name||'Visual landmark';$('routeLandmarkHint').textContent=step.confirm||''}
  $('confirmLandmark').hidden=!(cp||step.confirm);$('confirmLandmark').textContent=cp?'✓ I can see '+cp.name:'✓ I can see this';
  $('nextStep').textContent=state.routeIndex===r.steps.length-1?'Finish':'Done — next';$('prevStep').disabled=state.routeIndex===0;
  $('context').textContent='Navigating to '+r.targetLabel;renderGuideLens();renderTourGuide();renderCameraGuide();saveActiveRoute()
@@ -503,20 +528,20 @@ function renderTourGuide(){if(!$('tourGuideBar'))return;if(!state.route){$('tour
 function speak(){if(!state.route||!('speechSynthesis'in window))return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(currentRouteStep().text);u.rate=.95;speechSynthesis.speak(u)}
 function nextRouteStep(){if(!state.route)return;if(state.routeIndex<state.route.steps.length-1){state.routeIndex++;state.legWalkMeters=0;renderRoute();focusCurrentLeg();buzz();if(state.voice)speak()}else finishRoute()}
 function handleRouteAnchor(c){
- if(!state.route)return;const idx=state.route.steps.findIndex(s=>s.anchor===c.id);
+ if(!state.route)return;const idx=state.route.steps.findIndex(s=>s.anchor===c.id||s.confirmCheckpointId===c.id);
  if(idx>=0){state.routeIndex=Math.min(idx+1,state.route.steps.length-1);renderRoute();focusCurrentLeg();buzz();if(state.voice)speak();return}
  rerouteFromCurrent()
 }
 function rerouteFromCurrent(){
  if(!state.route)return;let nr=null;if(state.route.b)nr=computeRoomRoute(state.route.b,{ignoreStepFree:state.route.ignoreStepFree});else if(state.route.targetCheckpoint)nr=computeCheckpointRoute(state.route.targetCheckpoint,{ignoreStepFree:state.route.ignoreStepFree});
- if(nr&&!nr.blocked&&nr.precision==='survey graph'){toast('Route updated from your confirmed position');beginRoute(nr,0)}
+ if(nr&&!nr.blocked&&(nr.precision==='survey graph'||nr.precision==='guided room section')){toast('Route updated from your confirmed position');beginRoute(nr,0)}
  else {toast('Position updated. No better surveyed route is available yet');renderRoute()}
 }
 function openLostRecovery(){
  if(!state.route){openPosition();return}const step=currentRouteStep();$('lostContext').innerHTML='<b>Current instruction</b><p>'+step.text+'</p><small>Choose something you can definitely see. We will re-anchor or rebuild the route rather than guessing.</small>';
- const anchors=state.route.steps.map((s,i)=>({s,i,c:checkpointBy(s.anchor)})).filter(x=>x.c||x.s.confirm).sort((x,y)=>Math.abs(x.i-state.routeIndex)-Math.abs(y.i-state.routeIndex));
+ const anchors=state.route.steps.map((s,i)=>({s,i,c:checkpointBy(s.confirmCheckpointId||s.anchor)})).filter(x=>x.c||x.s.confirm).sort((x,y)=>Math.abs(x.i-state.routeIndex)-Math.abs(y.i-state.routeIndex));
  $('lostChoices').innerHTML=anchors.slice(0,8).map(x=>'<button class="result" data-route-index="'+x.i+'"><span class="result-icon">'+(x.s.icon||'◉')+'</span><span class="result-copy"><b>'+(x.c?.name||'Route landmark')+'</b><small>'+((x.i<state.routeIndex?'Earlier · ':x.i>state.routeIndex?'Ahead · ':'Current · ')+(x.s.confirm||x.s.text))+'</small></span><em>'+(x.c?.pos?'Anchor':'Guide')+'</em></button>').join('')||'<p class="empty">No surveyed landmarks on this route yet. Use the 360° visual check or identify a room number.</p>';
- $('lostChoices').querySelectorAll('[data-route-index]').forEach(b=>b.onclick=()=>{const i=+b.dataset.routeIndex,s=state.route.steps[i],cp=checkpointBy(s.anchor);state.routeIndex=i;if(cp)anchorAt(cp);else{renderRoute();focusCurrentLeg()}closeSheets();toast('Route re-oriented')});openSheet('lostSheet')
+ $('lostChoices').querySelectorAll('[data-route-index]').forEach(b=>b.onclick=()=>{const i=+b.dataset.routeIndex,s=state.route.steps[i],cp=checkpointBy(s.confirmCheckpointId||s.anchor);state.routeIndex=i;if(cp)anchorAt(cp);else{renderRoute();focusCurrentLeg()}closeSheets();toast('Route re-oriented')});openSheet('lostSheet')
 }
 $('plannerChangeStart').onclick=()=>{closeSheets();openSearch('start')};
 $('plannerChangeDest').onclick=()=>{closeSheets();openSearch('destination')};
@@ -525,7 +550,7 @@ $('plannerBegin').onclick=()=>{if(state.routeDraft?.blockedReason==='start'){ope
 $('plannerGeneral').onclick=()=>{if(state.pendingPlace)openPlacePlanner(state.pendingPlace,bestReachableCheckpoint(placeCandidates(state.pendingPlace)),{ignoreStepFree:true});else if(state.pendingCheckpoint)openCheckpointPlanner(state.pendingCheckpoint,{ignoreStepFree:true});else if(state.destination)openRoutePlanner(state.destination,{ignoreStepFree:true})};
 $('nextStep').onclick=nextRouteStep;$('prevStep').onclick=()=>{if(state.route&&state.routeIndex>0){state.routeIndex--;renderRoute();focusCurrentLeg()}};
 $('speakStep').onclick=speak;$('endRoute').onclick=endRoute;$('visualCheck').onclick=openRouteVisual;$('recalibrate').onclick=openPosition;$('guideLensClose').onclick=()=>$('guideLens').hidden=true;$('tourBackToGuide').onclick=()=>{closeTour();$('routeCard').hidden=false};
-$('confirmLandmark').onclick=()=>{const s=currentRouteStep();if(!s)return;const cp=checkpointBy(s.anchor);if(cp)anchorAt(cp);else nextRouteStep()};
+$('confirmLandmark').onclick=()=>{const s=currentRouteStep();if(!s)return;const cp=checkpointBy(s.confirmCheckpointId||s.anchor);if(cp)anchorAt(cp);else nextRouteStep()};
 $('lostBtn').onclick=openLostRecovery;$('lostRoom').onclick=()=>{closeSheets();openSearch('reanchor')};
 $('lostTour').onclick=openRouteVisual;$('lostPosition').onclick=openPosition;
 /* ---------- immersive tour ---------- */
