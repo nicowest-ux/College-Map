@@ -117,6 +117,20 @@ function routeWithEdges(a,b,edgeSet,stepFree=false){
  const startIds=roomNodeIds(a),endIds=roomNodeIds(b);if(!startIds.length||!endIds.length)return null;
  return Core.shortestPath({checkpoints:cps,edges:edgeSet,startIds,endIds,options:{profile:'student',stepFree}})
 }
+console.log('\nMinimum corridor-node distances between building graphs on the same level:');
+const groups=new Map();
+for(const n of corridor){const k=n.bldg+'|'+n.floor;if(!groups.has(k))groups.set(k,[]);groups.get(k).push(n)}
+const gkeys=[...groups.keys()];
+const cross=[];
+for(let i=0;i<gkeys.length;i++)for(let j=i+1;j<gkeys.length;j++){
+ const [ba,fa]=gkeys[i].split('|'),[bb,fb]=gkeys[j].split('|');if(fa!==fb||ba===bb)continue;
+ let best=null,bd=Infinity;
+ for(const a of groups.get(gkeys[i]))for(const b of groups.get(gkeys[j])){const d=Core.distance(a.pos,b.pos);if(d<bd){bd=d;best={a,b}}}
+ if(best)cross.push({ka:gkeys[i],kb:gkeys[j],d:bd,...best})
+}
+cross.sort((a,b)=>a.d-b.d);
+for(const x of cross.slice(0,40))console.log(' -',x.d.toFixed(1)+'px',x.ka,x.a.id,JSON.stringify(x.a.pos),'<->',x.kb,x.b.id,JSON.stringify(x.b.pos));
+
 console.log('\nHypothetical same-floor stitch impact:');
 for(const limit of [40,50,65,90,120,180]){
  const es=hypotheticalEdges(limit);let reachN=0,pairN=0;
