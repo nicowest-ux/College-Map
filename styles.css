@@ -101,3 +101,6 @@ body.navigating .map-vignette{background:linear-gradient(180deg,rgba(9,14,28,.18
 .result .scene-note{font-size:9px;color:var(--muted)}
 .studio-grid select,.studio-grid button{min-width:0}
 @media(max-width:430px){.camera-arrow-3d{width:100px;height:150px;transform:rotateZ(var(--arrow-rotate,0deg)) rotateX(58deg) translateZ(18px)}.camera-arrow-3d .arrow-shaft{left:34px;width:34px;height:86px;top:59px}.camera-arrow-3d .arrow-head{left:4px;border-left-width:46px;border-right-width:46px;border-bottom-width:70px}.camera-actions{grid-template-columns:1fr}.camera-bottom{padding:12px}}
+
+/* user-annotated corridor network */
+.corridor-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:1}.corridor-seed{fill:none;stroke:#0078d7;stroke-width:5;stroke-linecap:round;stroke-linejoin:round;opacity:.58;vector-effect:non-scaling-stroke}.route-svg{z-index:3}
