@@ -10,6 +10,37 @@ Campus Navigator is now built around three jobs:
 2. **Explore** — the college's real 360° virtual tour for visual orientation.
 3. **Ask** — an intent-aware campus concierge that understands what a user needs even when they do not know a room number.
 
+## Navigation experience overhaul
+
+The navigation flow has been rebuilt around **confirm → preview → walk → recover**, rather than immediately showing a generic list of directions.
+
+- Every route now opens a **route preview** showing start, destination, route quality and any safety/coverage warning before guidance begins.
+- Live guidance is **one instruction at a time**, with a large action/turn cue, the next instruction preview, visible landmark confirmation, previous-step control and an expandable full route.
+- During active guidance the normal app chrome gets out of the way so the map and the current instruction remain the focus.
+- Surveyed graph routes are the only routes that draw a route line. Floor-level/general guidance no longer draws a straight line through walls.
+- Step-free mode is now strict: **every link must explicitly be marked step-free**. Unknown links are rejected rather than assumed accessible.
+- Staff-only, one-way and temporarily closed links are enforced by the routing core.
+- The route engine can re-plan from a confirmed off-route checkpoint when a surveyed graph allows it.
+- “I’m lost” prioritises nearby route landmarks and can re-anchor from a visible room number.
+- “Nearest toilet / printer / water / lift” no longer teleports the user’s location to the facility; it plans from the current confirmed position.
+- Phone motion is now used as **heading assistance only**. The app no longer moves the blue position marker by an arbitrary number of map pixels per detected step.
+- Active room-to-room routes can be resumed for up to eight hours.
+- Deep links support `?from=B007&to=B014`, `?to=B014` and surveyed checkpoint links such as `?cp=B007_DOOR&to=B014`.
+- Optional haptic cues and auto-focus of the current route leg are available in navigation settings.
+- Search keeps recent room destinations near the top when no query is entered.
+
+### Routing core and validation
+
+`nav-core.js` contains the testable pathfinding rules used by the app. CI checks now cover:
+
+- staff-only route rejection for students;
+- strict step-free routing;
+- closed-link avoidance;
+- one-way enforcement;
+- reverse instructions;
+- JavaScript syntax for standalone and embedded builds;
+- a headless Chrome smoke test that opens a real B007 → B014 route preview.
+
 ## Precision wayfinding added to v6
 
 - Correct native floorplan coordinate system: **2560 × 1527**.
