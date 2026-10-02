@@ -39,3 +39,12 @@ const t=N.turn([10,0],[0,0],[0,10]);
 assert.strictEqual(t.action,'right');
 
 console.log('navigation core tests passed');
+// camera-guide heading helpers and edge metadata
+assert.strictEqual(N.normAngle(-10),350);
+assert.strictEqual(N.angleDelta(350,10),20);
+assert.strictEqual(N.angleDelta(10,350),-20);
+const modePath=N.shortestPath({checkpoints:cps,edges:[{from:'A',to:'B',weight:1,stepFree:true,mode:'lift',meters:6}],startIds:['A'],endIds:['B'],options:{}});
+const modeSteps=N.pathSteps(modePath,cps);
+assert.strictEqual(modeSteps[0].mode,'lift');
+assert.strictEqual(modeSteps[0].meters,6);
+console.log('camera-guide heading helpers passed');
