@@ -1,4 +1,5 @@
 (() => {
+const roomGuideHints=window.CAMPUS_ROOM_GUIDE_HINTS||{};
 const dep={admin:'#737b88',business:'#16a5c7',english:'#f47b20',humanities:'#ef8e72',sport:'#a12f69',maths:'#c79a13',arts:'#4d5bd8',science:'#df74a6',social:'#7a50c7',visual:'#e77a16',learning:'#4aa8d8'};
 const floorViews={
  'Ribble|G':{bounds:[[400,410],[815,650]]},'Ribble|1':{bounds:[[670,190],[1290,430]]},'Ribble|2':{bounds:[[880,0],[1510,225]]},
@@ -181,6 +182,6 @@ const surveyTypes=[
  {id:'landmark',label:'Landmark',icon:'◉'}
 ];
 
-window.CAMPUS_V6={image:{width:2560,height:1527,src:'floorplan.png',sourceDate:'September 2017'},floorViews,rooms,specialRoutes,routeTemplates,checkpoints,edges,restrictions,surveyTypes,departments:dep,places,intentGroups,tourUrl,tourScenes,roomTourScenes,tourMedia,annotatedSource};
+window.CAMPUS_V6={image:{width:2560,height:1527,src:'floorplan.png',sourceDate:'September 2017'},floorViews,rooms,specialRoutes,routeTemplates,checkpoints,edges,restrictions,surveyTypes,departments:dep,places,intentGroups,tourUrl,tourScenes,roomTourScenes,tourMedia,annotatedSource,roomGuideHints};
 window.CAMPUS_V5=window.CAMPUS_V6;
 })();
